@@ -1,0 +1,3269 @@
+---
+title: "Untitled"
+output: word_document
+date: "2026-06-11"
+---
+
+```{r setup, include=FALSE}
+# renv::install("knitr@1.52", prompt=FALSE)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r loading packages, include=FALSE, echo=FALSE}
+
+# renv::install("tidyverse@2.0.0", prompt=FALSE)
+# renv::install("dplyr@1.2.0", prompt=FALSE)
+# renv::install("car@3.1-5", prompt=FALSE)
+# renv::install("lme4@1.1-35.1", prompt=FALSE)
+# renv::install("lmerTest@3.2-1", prompt=FALSE)
+# renv::install("psych@2.6.5", prompt=FALSE)
+# renv::install("MBESS@4.9.42", prompt=FALSE)
+# renv::install("ucminf@1.2.3", prompt=FALSE)
+renv::install("ordinal@2025.12-29", prompt=FALSE, verbose=TRUE)
+# renv::install("DirichletReg@0.7-2", prompt=FALSE)
+# renv::install("DHARMa@0.4.7", prompt=FALSE)
+# renv::install("sure@0.2.0", prompt=FALSE)
+# renv::install("ggplot2@4.0.2", prompt=FALSE)
+# renv::install("ggh4x@0.3.1", prompt=FALSE)
+# renv::install("ggdist@3.3.3", prompt=FALSE)
+# renv::install("ggtern@4.0.0", prompt=FALSE)
+# renv::install("ggeffects@2.3.2", prompt=FALSE)
+# renv::install("patchwork@1.3.2", prompt=FALSE)
+
+
+# library("tidyverse")
+# library("dplyr")
+# library("car")
+# library("lme4")
+# library("lmerTest")
+# library("psych")
+# library("MBESS")
+# library("ordinal")
+# library("DirichletReg")
+# library("DHARMa")
+# library("sure")
+# library("ggplot2")
+# library("ggh4x")
+# library("ggdist")
+# library("ggtern")
+# library("ggeffects")
+# library("patchwork")
+
+```
+
+```{r read and reorder data, include=TRUE, echo=TRUE}
+
+#read data
+pz_data <- read.csv("C:/Users/katie/OneDrive/Research/PhD/Videogames and conservation/PZ/Write Up/Supp Material/SI2_Data and scripts/Datasets post-matching/final_data_long.csv")
+pz_data <- pz_data %>% filter(education != "None specified")
+
+
+#convert to factors
+pz_data$participant_id <- as.factor(pz_data$participant_id)
+pz_data$gender <- factor(pz_data$gender, levels = c('Female', 'Male', 'Other'))
+pz_data$player <- factor(pz_data$player, levels = c('0', '1'))
+pz_data$virtual <- factor(pz_data$virtual, levels = c('0', '1'))
+pz_data$mammal <- factor(pz_data$mammal, levels = c('0', '1'))
+pz_data$education <- factor(pz_data$education, levels = c('Secondary school', 'Further education', 'Undergraduate degree', 'Postgraduate degree'))
+pz_data$donation_habits <- factor(pz_data$donation_habits, levels = c('Never', 'Yearly', 'Once every 6 months', 'Once every 3 months', 'Monthly'))
+levels(pz_data$donation_habits) <- list(
+  "Never" = "Never", "Once per year" = "Yearly", "A few times per year" = c("Once every 6 months", "Once every 3 months"), "Monthly" = "Monthly")
+pz_data$pz_recency <- factor(pz_data$pz_recency, levels = c('Never', 'More than 1 year ago', 'Within the last year', 'Within the last 6 months', 'Within the last 3 months', 'Within the last month', 'Within the last week'))
+levels(pz_data$pz_recency) <- list(
+  "Never" = "Never", "More than 6 months ago" = c("More than 1 year ago", "Within the last year"), "Within past 6 months" = c("Within the last 6 months", "Within the last 3 months"), "Within the last month" = "Within the last month", "Within the last week" = "Within the last week")
+
+
+#different dataset because do not have separate lines of responses per taxa for IAT or donations; no participant_id random effect
+pz_data_short <- read.csv("C:/Users/katie/OneDrive/Research/PhD/Videogames and conservation/PZ/Write Up/Supp Material/SI2_Data and scripts/Datasets post-matching/final_data_short.csv")
+pz_data_short <- pz_data_short %>% filter(education != "None specified")
+
+#convert to factors
+pz_data_short$participant_id <- as.factor(pz_data_short$participant_id)
+pz_data_short$gender <- factor(pz_data_short$gender, levels = c('Female', 'Male', 'Other'))
+pz_data_short$player <- factor(pz_data_short$player, levels = c('0', '1'))
+pz_data_short$virtual <- factor(pz_data_short$virtual, levels = c('0', '1'))
+pz_data_short$education <- factor(pz_data_short$education, levels=c('Secondary school', 'Further education', 'Undergraduate degree', 'Postgraduate degree'))
+pz_data_short$donation_habits <- factor(pz_data_short$donation_habits, levels=c('Never', 'Yearly', 'Once every 6 months', 'Once every 3 months', 'Monthly'))
+levels(pz_data_short$donation_habits) <- list(
+  "Never" = "Never", "Once per year" = "Yearly", "A few times per year" = c("Once every 6 months", "Once every 3 months"), "Monthly" = "Monthly")
+pz_data_short$pz_recency <- factor(pz_data_short$pz_recency, levels=c('Never', 'More than 1 year ago', 'Within the last year', 'Within the last 6 months', 'Within the last 3 months', 'Within the last month', 'Within the last week'))
+levels(pz_data_short$pz_recency) <- list(
+  "Never" = "Never", "More than 6 months ago" = c("More than 1 year ago", "Within the last year"), "Within past 6 months" = c("Within the last 6 months", "Within the last 3 months"), "Within the last month" = "Within the last month", "Within the last week" = "Within the last week")
+
+
+```
+
+```{r checking summary statistics, include=TRUE, echo=TRUE}
+
+#participants per condition
+pz_data_short %>% 
+  group_by(player, virtual) %>% 
+  summarise(counted = n())
+
+
+#age stats
+pz_data_short %>% summarise(min_age = min(age),
+                            max_age = max(age), 
+                            mean_age = mean(age),
+                            sd_age = sd(age))
+
+
+#gender stats
+pz_data_short %>%
+   count(gender, sort = TRUE) %>% 
+   mutate(gender_prop = (n / sum(n)) * 100) %>%
+   head()
+
+
+#country stats
+pz_data_short %>%
+   count(country, sort = TRUE) %>% 
+   mutate(country_prop = (n / sum(n)) * 100) %>%
+   head()
+
+
+#education stats
+pz_data_short %>%
+   count(education, sort = FALSE) %>% 
+   mutate(education_prop = (n / sum(n)) * 100) %>%
+   head()
+
+
+#nr stats
+pz_data_short %>% summarise(min_nr = min(nr),
+                            max_nr = max(nr), 
+                            mean_nr = mean(nr),
+                            sd_nr = sd(nr))
+
+
+#donation_habits stats
+pz_data_short %>%
+   count(donation_habits, sort = FALSE) %>% 
+   mutate(donations_habits_prop = (n / sum(n)) * 100) %>%
+   head()
+
+
+#pz_recency stats
+pz_data_short %>%
+  filter(player == "1") %>% 
+  count(pz_recency, sort = FALSE) %>%
+  mutate(pz_recency_prop = (n / sum(n)) * 100) # calculate percentage based ONLY on player = 1 total (sum(n))
+
+
+#pz_hours stats
+pz_data_short %>% filter(player =="1") %>%
+  summarise(min_pz_hours = min(pz_hours),
+            max_pz_hours = max(pz_hours),
+            LIQR5_pz_hours = quantile(pz_hours, 0.05),
+            median_pz_hours = median(pz_hours),
+            UIQR95_pz_hours = quantile(pz_hours, 0.95),
+            mean_pz_hours = mean(pz_hours),
+            sd_pz_hours = sd(pz_hours))
+
+```
+
+```{r scaling continuous variables, include=TRUE, echo=TRUE}
+
+#scaling pz_hours
+pz_data <- pz_data %>% mutate(pz_hours.z=pz_hours)
+pz_data$pz_hours.z <- scale(pz_data$pz_hours.z)
+mean(pz_data$pz_hours.z)
+sd(pz_data$pz_hours.z)
+
+
+#scaling age
+pz_data <- pz_data %>% mutate(age.z=age)
+pz_data$age.z <- scale(pz_data$age.z)
+mean(pz_data$age.z)
+sd(pz_data$age.z)
+
+
+#scaling pz_hours
+pz_data_short <- pz_data_short %>% mutate(pz_hours.z=pz_hours)
+pz_data_short$pz_hours.z <- scale(pz_data_short$pz_hours.z)
+mean(pz_data_short$pz_hours.z)
+sd(pz_data_short$pz_hours.z)
+
+
+#scaling age
+pz_data_short <- pz_data_short %>% mutate(age.z=age)
+pz_data_short$age.z <- scale(pz_data_short$age.z)
+mean(pz_data_short$age.z)
+sd(pz_data_short$age.z)
+
+```
+
+```{r check collinearity, include=TRUE, echo=TRUE}
+
+#checking for collinearity between predictors
+car::vif(glm(id_correct ~ age + gender + education + nr + donation_habits + pz_recency + pz_hours + virtual + mammal, data = pz_data))
+
+car::vif(glm(willingness_to_help ~ age + gender + education + nr + donation_habits + pz_recency + pz_hours + virtual + mammal + id_correct + iat_dscore + explicit_pref + status_correct + threat_appraisal + coping_appraisal + barriers, data = pz_data))
+
+car::vif(glm(donated ~ age + gender + education + nr + donation_habits + pz_recency + pz_hours + virtual + mammal + id_correct + iat_dscore + explicit_pref + status_correct + threat_appraisal + coping_appraisal + barriers + willingness_to_help, data = pz_data))
+
+```
+
+```{r identifying names, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_id_correct <- pz_data %>% 
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+overall_stats_id_correct
+
+
+#just group
+player_stats_id_correct <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+player_stats_id_correct
+
+nonplayer_stats_id_correct <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+nonplayer_stats_id_correct
+
+
+#just condition
+virtual_stats_id_correct <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+virtual_stats_id_correct
+
+real_stats_id_correct <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+real_stats_id_correct
+
+
+#just taxon
+mammal_stats_id_correct <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+mammal_stats_id_correct
+
+reptile_stats_id_correct <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+reptile_stats_id_correct
+
+
+#grouped by conditions and taxa
+p_r_stats_id_correct <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+p_r_stats_id_correct #overall for players x real
+
+p_r_mam_stats_id_correct <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+p_r_mam_stats_id_correct #overall for players x real x mammal
+
+p_r_rep_stats_id_correct <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+p_r_rep_stats_id_correct #overall for players x real x reptile
+
+
+np_r_stats_id_correct <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+np_r_stats_id_correct #overall for nonplayers x real
+
+np_r_mam_stats_id_correct <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+np_r_mam_stats_id_correct #overall for nonplayers x real x mammal
+
+np_r_rep_stats_id_correct <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+np_r_rep_stats_id_correct #overall for nonplayers x real x reptile
+
+
+p_v_stats_id_correct <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+p_v_stats_id_correct #overall for players x virtual
+
+p_v_mam_stats_id_correct <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+p_v_mam_stats_id_correct #overall for players x virtual x mammal
+
+p_v_rep_stats_id_correct <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+p_v_rep_stats_id_correct #overall for players x virtual x reptile
+
+
+np_v_stats_id_correct <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+np_v_stats_id_correct #overall for nonplayers x virtual
+
+np_v_mam_stats_id_correct <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+np_v_mam_stats_id_correct #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_id_correct <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_id_correct = min(id_correct),
+            max_id_correct = max(id_correct),
+            mean_id_correct = mean(id_correct),
+            sd_id_correct = sd(id_correct))
+np_v_rep_stats_id_correct #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_id_correct, player_stats_id_correct, nonplayer_stats_id_correct, virtual_stats_id_correct, real_stats_id_correct, mammal_stats_id_correct, reptile_stats_id_correct, p_r_stats_id_correct, p_r_mam_stats_id_correct, p_r_rep_stats_id_correct, np_r_stats_id_correct, np_r_mam_stats_id_correct, np_r_rep_stats_id_correct, p_v_stats_id_correct, p_v_mam_stats_id_correct, p_v_rep_stats_id_correct, np_v_stats_id_correct, np_v_mam_stats_id_correct, np_v_rep_stats_id_correct), .id = "id")
+
+
+#exploratory regression, seems fine
+know_name_explor <- glmer(cbind(id_correct,id_max-id_correct) ~ pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, family = "binomial", control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(know_name_explor), show.residuals = TRUE)
+
+
+#run and print the binomial regression model, plus telling r how many attempts to find convergence so that the model does not show a warning (the numeric(0) one)
+know_name <- glmer(cbind(id_correct,id_max-id_correct) ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, family = "binomial", control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(know_name), show.residuals = TRUE)
+
+
+#anova to check for significant main effects and see if there are non-significant interactions to remove from model
+drop1(know_name, test = "Chisq")
+
+
+#run and print the binomial regression model again without non-significant interaction(s)
+know_name_final <- glmer(cbind(id_correct,id_max-id_correct) ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:mammal + (1|participant_id), data = pz_data, family = "binomial", control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e8)))
+print(summary(know_name_final), show.residuals = TRUE)
+confint(know_name_final, method = "Wald")
+
+drop1name <- drop1(know_name_final, test = "Chisq")
+print(drop1name)
+
+#check residuals
+sim_res_know_name_final <- simulateResiduals(know_name_final)
+plot(sim_res_know_name_final)
+testDispersion(sim_res_know_name_final)
+
+
+#plot effects
+name_recency_eff <- ggpredict(know_name_final, terms = c("pz_recency"))
+plot(name_recency_eff, connect_lines = TRUE) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+name_hours_eff <- ggpredict(know_name_final, terms = c("pz_hours.z"))
+plot(name_hours_eff, connect_lines = TRUE) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+name_taxon_eff <- ggpredict(know_name_final, terms = c("mammal"))
+plot(name_taxon_eff, connect_lines = TRUE) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+name_virtual_eff <- ggpredict(know_name_final, terms = c("virtual"))
+plot(name_virtual_eff, connect_lines = TRUE) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+name_hourmam_eff <- ggpredict(know_name_final, terms = c("pz_hours.z", "mammal"))
+plot(name_hourmam_eff, connect_lines = TRUE) +
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+  
+  
+ #manuscript interaction plot
+name_hourmam_eff <- ggpredict(know_name_final, terms = c("pz_hours.z", "mammal"))
+knowledge_interaction <- plot(name_hourmam_eff, connect_lines = TRUE, alpha = 0.2) +
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                     labels = c("0" = "R", "1" = "M")) +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "M")) +
+  labs(y = "Correct responses (name)", x = "Hours of play",
+       title = NULL,
+       color = NULL,
+       fill = NULL) +
+  theme_bw() + 
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3),
+    panel.grid.major.y = element_line(color = "grey92", linewidth = 0.3),
+    axis.line = element_line(color = "black", linewidth = 0.3),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.3),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.3),
+    axis.title.x = element_text(margin = margin(t = 10), family = "serif", face = "bold", size = 11),
+    axis.title.y = element_text(margin = margin(r = 10), family = "serif", face = "bold", size = 11),
+    axis.text = element_text(size = 8, family = "sans", color = "black"),
+    axis.ticks.length  = unit(0.15, "cm"),
+    axis.text.x = element_text(margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    aspect.ratio = 1/2,
+    legend.position = "right")
+
+ggsave("knowledge_interaction.png",
+       width = 7,
+       height = 3.5,
+       units = "in",
+       dpi = 300)
+
+```
+
+```{r identifying status, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_status_correct <- pz_data %>% 
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+overall_stats_status_correct
+
+
+#just group
+player_stats_status_correct <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+player_stats_status_correct
+
+nonplayer_stats_status_correct <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+nonplayer_stats_status_correct
+
+
+#just condition
+virtual_stats_status_correct <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+virtual_stats_status_correct
+
+real_stats_status_correct <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+real_stats_status_correct
+
+
+#just taxon
+mammal_stats_status_correct <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+mammal_stats_status_correct
+
+reptile_stats_status_correct <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+reptile_stats_status_correct
+
+
+#grouped by conditions and taxa
+p_r_stats_status_correct <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+p_r_stats_status_correct #overall for players x real
+
+p_r_mam_stats_status_correct <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+p_r_mam_stats_status_correct #overall for players x real x mammal
+
+p_r_rep_stats_status_correct <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+p_r_rep_stats_status_correct #overall for players x real x reptile
+
+
+np_r_stats_status_correct <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+np_r_stats_status_correct #overall for nonplayers x real
+
+np_r_mam_stats_status_correct <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+np_r_mam_stats_status_correct #overall for nonplayers x real x mammal
+
+np_r_rep_stats_status_correct <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+np_r_rep_stats_status_correct #overall for nonplayers x real x reptile
+
+
+p_v_stats_status_correct <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+p_v_stats_status_correct #overall for players x virtual
+
+p_v_mam_stats_status_correct <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+p_v_mam_stats_status_correct #overall for players x virtual x mammal
+
+p_v_rep_stats_status_correct <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+p_v_rep_stats_status_correct #overall for players x virtual x reptile
+
+
+np_v_stats_status_correct <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+np_v_stats_status_correct #overall for nonplayers x virtual
+
+np_v_mam_stats_status_correct <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+np_v_mam_stats_status_correct #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_status_correct <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_status_correct = min(status_correct),
+            max_status_correct = max(status_correct),
+            mean_status_correct = mean(status_correct),
+            sd_status_correct = sd(status_correct))
+np_v_rep_stats_status_correct #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_status_correct, player_stats_status_correct, nonplayer_stats_status_correct, virtual_stats_status_correct, real_stats_status_correct, mammal_stats_status_correct, reptile_stats_status_correct, p_r_stats_status_correct, p_r_mam_stats_status_correct, p_r_rep_stats_status_correct, np_r_stats_status_correct, np_r_mam_stats_status_correct, np_r_rep_stats_status_correct, p_v_stats_status_correct, p_v_mam_stats_status_correct, p_v_rep_stats_status_correct, np_v_stats_status_correct, np_v_mam_stats_status_correct, np_v_rep_stats_status_correct), .id = "id")
+
+
+#exploratory regression, seems fine
+know_status_explor <- glmer(cbind(status_correct,status_max-status_correct) ~ pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, family = "binomial", control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(know_status_explor), show.residuals = TRUE)
+
+
+#run and print the binomial regression model
+know_status <- glmer(cbind(status_correct,status_max-status_correct) ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, family = "binomial", control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(know_status), show.residuals = TRUE)
+
+drop1(know_status, test = "Chisq")
+
+
+#run and print the binomial regression model again without non-significant interaction(s)
+know_status_final <- glmer(cbind(status_correct,status_max-status_correct) ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + (1|participant_id), data = pz_data, family = "binomial", control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(know_status_final), show.residuals = TRUE)
+confint(know_status_final, method = "Wald")
+
+drop1status <- drop1(know_status_final, test = "Chisq")
+print(drop1status)
+
+sim_res_know_status_final <- simulateResiduals(know_status_final)
+plot(sim_res_know_status_final)
+testDispersion(sim_res_know_status_final)
+
+
+#plot effects
+status_recency_eff <- ggpredict(know_status_final, terms = c("pz_recency"))
+plot(status_recency_eff, connect_lines = TRUE) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+status_hours_eff <- ggpredict(know_status_final, terms = c("pz_hours.z"))
+plot(status_hours_eff, connect_lines = TRUE) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+status_taxon_eff <- ggpredict(know_status_final, terms = c("mammal"))
+plot(status_taxon_eff, connect_lines = TRUE) + 
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+```
+
+```{r read and reorder data for iat, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_iat <- pz_data_short %>% 
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+overall_stats_iat
+
+
+#just group
+player_stats_iat <- pz_data_short %>%
+  filter(player =="1") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+player_stats_iat
+
+nonplayer_stats_iat <- pz_data_short %>%
+  filter(player =="0") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+nonplayer_stats_iat
+
+
+#just condition
+virtual_stats_iat <- pz_data_short %>%
+  filter(virtual =="1") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+virtual_stats_iat
+
+real_stats_iat <- pz_data_short %>%
+  filter(virtual =="0") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+real_stats_iat
+
+
+#grouped by conditions and taxa
+p_r_stats_iat <- pz_data_short %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+p_r_stats_iat #overall for players x real
+
+
+np_r_stats_iat <- pz_data_short %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+np_r_stats_iat #overall for nonplayers x real
+
+
+p_v_stats_iat <- pz_data_short %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+p_v_stats_iat #overall for players x virtual
+
+
+np_v_stats_iat <- pz_data_short %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_iat = min(iat_dscore),
+            max_iat = max(iat_dscore),
+            mean_iat = mean(iat_dscore),
+            sd_iat = sd(iat_dscore))
+np_v_stats_iat #overall for nonplayers x virtual
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_iat, player_stats_iat, nonplayer_stats_iat, virtual_stats_iat, real_stats_iat, p_r_stats_iat, np_r_stats_iat, p_v_stats_iat, np_v_stats_iat), .id = "id")
+
+
+#exploratory regression
+iat_score_explor <- glm(iat_dscore ~ pz_recency + pz_hours.z + virtual + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short)
+print(summary(iat_score_explor), show.residuals = TRUE)
+
+
+#run glm
+iat_score <- glm(iat_dscore ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short)
+print(summary(iat_score), show.residuals = TRUE)
+
+drop1(iat_score, test = "Chisq")
+
+
+#run and print the regression model again without the non-significant interaction(s)
+iat_score_final <- glm(iat_dscore ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual, data = pz_data_short)
+print(summary(iat_score_final), show.residuals = TRUE)
+confint(iat_score_final, method = "Wald")
+
+drop1iat <- drop1(iat_score_final, test = "Chisq")
+print(drop1iat)
+
+sim_res_iat_final <- simulateResiduals(iat_score_final)
+plot(sim_res_iat_final)
+testDispersion(sim_res_iat_final)
+
+```
+
+```{r explicit preference, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_explicit_pref <- pz_data %>% 
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+overall_stats_explicit_pref
+
+
+#just group
+player_stats_explicit_pref <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+player_stats_explicit_pref
+
+nonplayer_stats_explicit_pref <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+nonplayer_stats_explicit_pref
+
+
+#just condition
+virtual_stats_explicit_pref <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+virtual_stats_explicit_pref
+
+real_stats_explicit_pref <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+real_stats_explicit_pref
+
+
+#just taxon
+mammal_stats_explicit_pref <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+mammal_stats_explicit_pref
+
+reptile_stats_explicit_pref <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+reptile_stats_explicit_pref
+
+
+#grouped by conditions and taxa
+p_r_stats_explicit_pref <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+p_r_stats_explicit_pref #overall for players x real
+
+p_r_mam_stats_explicit_pref <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+p_r_mam_stats_explicit_pref #overall for players x real x mammal
+
+p_r_rep_stats_explicit_pref <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+p_r_rep_stats_explicit_pref #overall for players x real x reptile
+
+
+np_r_stats_explicit_pref <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+np_r_stats_explicit_pref #overall for nonplayers x real
+
+np_r_mam_stats_explicit_pref <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+np_r_mam_stats_explicit_pref #overall for nonplayers x real x mammal
+
+np_r_rep_stats_explicit_pref <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+np_r_rep_stats_explicit_pref #overall for nonplayers x real x reptile
+
+
+p_v_stats_explicit_pref <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+p_v_stats_explicit_pref #overall for players x virtual
+
+p_v_mam_stats_explicit_pref <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+p_v_mam_stats_explicit_pref #overall for players x virtual x mammal
+
+p_v_rep_stats_explicit_pref <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+p_v_rep_stats_explicit_pref #overall for players x virtual x reptile
+
+
+np_v_stats_explicit_pref <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+np_v_stats_explicit_pref #overall for nonplayers x virtual
+
+np_v_mam_stats_explicit_pref <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+np_v_mam_stats_explicit_pref #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_explicit_pref <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_explicit_pref = min(explicit_pref),
+            max_explicit_pref = max(explicit_pref),
+            mean_explicit_pref = mean(explicit_pref),
+            sd_explicit_pref = sd(explicit_pref))
+np_v_rep_stats_explicit_pref #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_explicit_pref, player_stats_explicit_pref, nonplayer_stats_explicit_pref, virtual_stats_explicit_pref, real_stats_explicit_pref, mammal_stats_explicit_pref, reptile_stats_explicit_pref, p_r_stats_explicit_pref, p_r_mam_stats_explicit_pref, p_r_rep_stats_explicit_pref, np_r_stats_explicit_pref, np_r_mam_stats_explicit_pref, np_r_rep_stats_explicit_pref, p_v_stats_explicit_pref, p_v_mam_stats_explicit_pref, p_v_rep_stats_explicit_pref, np_v_stats_explicit_pref, np_v_mam_stats_explicit_pref, np_v_rep_stats_explicit_pref), .id = "id")
+
+
+#exploratory regression
+ex_pref_explor <- lmer(explicit_pref ~ pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(ex_pref_explor), show.residuals = TRUE)
+
+
+#run and print the model (have to run as lmer instead of glmer to avoid warnings about how lmer and glmer with gaussian link are identical and deprecated)
+ex_pref <- lmer(explicit_pref ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(ex_pref), show.residuals = TRUE)
+
+drop1(ex_pref, test = "Chisq")
+
+
+#run and print the  regression model again without non-significant interaction(s), then rerun anova
+ex_pref_final <- lmer(explicit_pref ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(ex_pref_final), show.residuals = TRUE)
+confint(ex_pref_final, method = "Wald")
+
+drop1expref <- drop1(ex_pref_final, test = "Chisq")
+print(drop1expref)
+
+sim_res_ex_pref_final <- simulateResiduals(ex_pref_final)
+plot(sim_res_ex_pref_final)
+testDispersion(sim_res_ex_pref_final)
+
+
+#plot effects
+ex_pref_recencymam_eff <- ggpredict(ex_pref_final, terms = c("pz_recency", "mammal"))
+plot(ex_pref_recencymam_eff,connect_lines = TRUE) +
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+
+#plot interaction
+ex_pref_recencymam_eff <- ggpredict(ex_pref_final, terms = c("pz_recency", "mammal"))
+ex_pref_interaction <- plot(ex_pref_recencymam_eff, connect_lines = TRUE, alpha = 0.2) +
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                     labels = c("0" = "R", "1" = "M")) +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "M")) +
+  scale_y_continuous(limits = c(2, 5), breaks = 2:5) +
+  labs(y = "Explicit attitude ratings", x = "Recency of play",
+       title = NULL,
+       color = NULL,
+       fill = NULL) +
+  theme_bw() + 
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3),
+    panel.grid.major.y = element_line(color = "grey92", linewidth = 0.3),
+    axis.line = element_line(color = "black", linewidth = 0.3),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.3),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.3),
+    axis.title.x = element_text(margin = margin(t = 10), family = "serif", face = "bold", size = 11),
+    axis.title.y = element_text(margin = margin(r = 10), family = "serif", face = "bold", size = 11),
+    axis.text = element_text(size = 8, family = "sans", color = "black"),
+    axis.ticks.length = unit(0.15, "cm"),
+    axis.text.x = element_text(margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    aspect.ratio = 1/2,
+    legend.position = "right")
+
+ggsave("ex_pref_interaction.png",
+       width = 7,
+       height = 3.5,
+       units = "in",
+       dpi = 300)
+
+```
+
+```{r threat appraisal, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_threat_appraisal <- pz_data %>% 
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+overall_stats_threat_appraisal
+
+
+#just group
+player_stats_threat_appraisal <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+player_stats_threat_appraisal
+
+nonplayer_stats_threat_appraisal <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+nonplayer_stats_threat_appraisal
+
+
+#just condition
+virtual_stats_threat_appraisal <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+virtual_stats_threat_appraisal
+
+real_stats_threat_appraisal <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+real_stats_threat_appraisal
+
+
+#just taxon
+mammal_stats_threat_appraisal <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+mammal_stats_threat_appraisal
+
+reptile_stats_threat_appraisal <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+reptile_stats_threat_appraisal
+
+
+#grouped by conditions and taxa
+p_r_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+p_r_stats_threat_appraisal #overall for players x real
+
+p_r_mam_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+p_r_mam_stats_threat_appraisal #overall for players x real x mammal
+
+p_r_rep_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+p_r_rep_stats_threat_appraisal #overall for players x real x reptile
+
+
+np_r_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+np_r_stats_threat_appraisal #overall for nonplayers x real
+
+np_r_mam_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+np_r_mam_stats_threat_appraisal #overall for nonplayers x real x mammal
+
+np_r_rep_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+np_r_rep_stats_threat_appraisal #overall for nonplayers x real x reptile
+
+
+p_v_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+p_v_stats_threat_appraisal #overall for players x virtual
+
+p_v_mam_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+p_v_mam_stats_threat_appraisal #overall for players x virtual x mammal
+
+p_v_rep_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+p_v_rep_stats_threat_appraisal #overall for players x virtual x reptile
+
+
+np_v_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+np_v_stats_threat_appraisal #overall for nonplayers x virtual
+
+np_v_mam_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+np_v_mam_stats_threat_appraisal #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_threat_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_threat_appraisal = min(threat_appraisal),
+            max_threat_appraisal = max(threat_appraisal),
+            mean_threat_appraisal = mean(threat_appraisal),
+            sd_threat_appraisal = sd(threat_appraisal))
+np_v_rep_stats_threat_appraisal #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_threat_appraisal, player_stats_threat_appraisal, nonplayer_stats_threat_appraisal, virtual_stats_threat_appraisal, real_stats_threat_appraisal, mammal_stats_threat_appraisal, reptile_stats_threat_appraisal, p_r_stats_threat_appraisal, p_r_mam_stats_threat_appraisal, p_r_rep_stats_threat_appraisal, np_r_stats_threat_appraisal, np_r_mam_stats_threat_appraisal, np_r_rep_stats_threat_appraisal, p_v_stats_threat_appraisal, p_v_mam_stats_threat_appraisal, p_v_rep_stats_threat_appraisal, np_v_stats_threat_appraisal, np_v_mam_stats_threat_appraisal, np_v_rep_stats_threat_appraisal), .id = "id")
+
+
+#checking internal consistency
+sev_combined_mam <- psych::polychoric(pz_data_short[, c("sev1_mam", "sev2_mam", "sev3_mam")])
+sev_combined_mam_alpha <- psych::alpha(sev_combined_mam$rho)
+print(sev_combined_mam_alpha) #acceptable
+ci.reliability(S = sev_combined_mam$rho, N = 550, type = "alpha", interval.type = "normal")
+
+sev_combined_rep <- psych::polychoric(pz_data_short[, c("sev1_rep", "sev2_rep", "sev3_rep")])
+sev_combined_rep_alpha <- psych::alpha(sev_combined_rep$rho)
+print(sev_combined_rep_alpha) #acceptable
+ci.reliability(S = sev_combined_rep$rho, N = 550, type = "alpha", interval.type = "normal")
+
+vul_combined_mam <- psych::polychoric(pz_data_short[, c("vul1_mam", "vul2_mam", "vul3_mam")])
+vul_combined_mam_alpha <- psych::alpha(vul_combined_mam$rho)
+print(vul_combined_mam_alpha) #acceptable
+ci.reliability(S = vul_combined_mam$rho, N = 550, type = "alpha", interval.type = "normal")
+
+vul_combined_rep <- psych::polychoric(pz_data_short[, c("vul1_rep", "vul2_rep", "vul3_rep")])
+vul_combined_rep_alpha <- psych::alpha(vul_combined_rep$rho)
+print(vul_combined_rep_alpha) #acceptable
+ci.reliability(S = vul_combined_rep$rho, N = 550, type = "alpha", interval.type = "normal")
+
+threat_mam <- psych::alpha(pz_data_short[, c("severity_mam", "vulnerability_mam")])
+print(threat_mam, short = FALSE)
+
+threat_rep <- psych::alpha(pz_data_short[, c("severity_rep", "vulnerability_rep")])
+print(threat_rep, short = FALSE)
+
+
+#exploratory regression
+threat_explor <- lmer(threat_appraisal ~ pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(threat_explor), show.residuals = TRUE)
+
+
+#run and print the model
+threat <- lmer(threat_appraisal ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(threat), show.residuals = TRUE)
+confint(threat, method = "Wald")
+
+drop1(threat, test = "Chisq")
+
+#run and print the  regression model again without non-significant interaction(s), then rerun anova
+threat_final <- lmer(threat_appraisal ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(threat_final), show.residuals = TRUE)
+confint(threat_final, method = "Wald")
+
+drop1threat <- drop1(threat_final, test = "Chisq")
+print(drop1threat)
+
+sim_res_threat_final <- simulateResiduals(threat_final)
+plot(sim_res_threat_final)
+testDispersion(sim_res_threat_final)
+
+
+#plotting effects
+threat_recency_eff <- ggpredict(threat, terms = c("pz_recency"))
+plot(threat_recency_eff,connect_lines = TRUE) +
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+threat_hourmam_eff <- ggpredict(threat, terms = c("pz_hours.z", "mammal"))
+plot(threat_hourmam_eff,connect_lines = TRUE) +
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+```
+
+```{r coping appraisal, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_coping_appraisal <- pz_data %>% 
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+overall_stats_coping_appraisal
+
+
+#just group
+player_stats_coping_appraisal <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+player_stats_coping_appraisal
+
+nonplayer_stats_coping_appraisal <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+nonplayer_stats_coping_appraisal
+
+
+#just condition
+virtual_stats_coping_appraisal <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+virtual_stats_coping_appraisal
+
+real_stats_coping_appraisal <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+real_stats_coping_appraisal
+
+
+#just taxon
+mammal_stats_coping_appraisal <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+mammal_stats_coping_appraisal
+
+reptile_stats_coping_appraisal <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+reptile_stats_coping_appraisal
+
+
+#grouped by conditions and taxa
+p_r_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+p_r_stats_coping_appraisal #overall for players x real
+
+p_r_mam_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+p_r_mam_stats_coping_appraisal #overall for players x real x mammal
+
+p_r_rep_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+p_r_rep_stats_coping_appraisal #overall for players x real x reptile
+
+
+np_r_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+np_r_stats_coping_appraisal #overall for nonplayers x real
+
+np_r_mam_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+np_r_mam_stats_coping_appraisal #overall for nonplayers x real x mammal
+
+np_r_rep_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+np_r_rep_stats_coping_appraisal #overall for nonplayers x real x reptile
+
+
+p_v_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+p_v_stats_coping_appraisal #overall for players x virtual
+
+p_v_mam_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+p_v_mam_stats_coping_appraisal #overall for players x virtual x mammal
+
+p_v_rep_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+p_v_rep_stats_coping_appraisal #overall for players x virtual x reptile
+
+
+np_v_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+np_v_stats_coping_appraisal #overall for nonplayers x virtual
+
+np_v_mam_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+np_v_mam_stats_coping_appraisal #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_coping_appraisal <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_coping_appraisal = min(coping_appraisal),
+            max_coping_appraisal = max(coping_appraisal),
+            mean_coping_appraisal = mean(coping_appraisal),
+            sd_coping_appraisal = sd(coping_appraisal))
+np_v_rep_stats_coping_appraisal #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_coping_appraisal, player_stats_coping_appraisal, nonplayer_stats_coping_appraisal, virtual_stats_coping_appraisal, real_stats_coping_appraisal, mammal_stats_coping_appraisal, reptile_stats_coping_appraisal, p_r_stats_coping_appraisal, p_r_mam_stats_coping_appraisal, p_r_rep_stats_coping_appraisal, np_r_stats_coping_appraisal, np_r_mam_stats_coping_appraisal, np_r_rep_stats_coping_appraisal, p_v_stats_coping_appraisal, p_v_mam_stats_coping_appraisal, p_v_rep_stats_coping_appraisal, np_v_stats_coping_appraisal, np_v_mam_stats_coping_appraisal, np_v_rep_stats_coping_appraisal), .id = "id")
+
+
+#checking internal consistency
+selfeff_combined_mam <- psych::polychoric(pz_data_short[, c("selfeff1_mam", "selfeff2_mam", "selfeff3_mam")])
+selfeff_combined_mam_alpha <- psych::alpha(selfeff_combined_mam$rho)
+print(selfeff_combined_mam_alpha) #good
+ci.reliability(S = selfeff_combined_mam$rho, N = 550, type = "alpha", interval.type = "normal")
+
+selfeff_combined_rep <- psych::polychoric(pz_data_short[, c("selfeff1_rep", "selfeff2_rep", "selfeff3_rep")])
+selfeff_combined_rep_alpha <- psych::alpha(selfeff_combined_rep$rho)
+print(selfeff_combined_rep_alpha) #good
+ci.reliability(S = selfeff_combined_rep$rho, N = 550, type = "alpha", interval.type = "normal")
+
+respeff_combined_mam <- psych::polychoric(pz_data_short[, c("respeff1_mam", "respeff2_mam", "respeff3_mam")])
+respeff_combined_mam_alpha <- psych::alpha(respeff_combined_mam$rho)
+print(respeff_combined_mam_alpha) #good
+ci.reliability(S = respeff_combined_mam$rho, N = 550, type = "alpha", interval.type = "normal")
+
+respeff_combined_rep <- psych::polychoric(pz_data_short[, c("respeff1_rep", "respeff2_rep", "respeff3_rep")])
+respeff_combined_rep_alpha <- psych::alpha(respeff_combined_rep$rho)
+print(respeff_combined_rep_alpha) #good
+ci.reliability(S = respeff_combined_rep$rho, N = 550, type = "alpha", interval.type = "normal")
+
+coping_mam <- psych::alpha(pz_data_short[, c("self_efficacy_mam", "response_efficacy_mam")])
+print(coping_mam, short = FALSE)
+
+coping_rep <- psych::alpha(pz_data_short[, c("self_efficacy_rep", "response_efficacy_rep")])
+print(coping_rep, short = FALSE)
+
+
+#exploratory regression
+coping_explor <- lmer(coping_appraisal ~ pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(coping_explor), show.residuals = TRUE)
+
+
+#run and print the model
+coping <- lmer(coping_appraisal ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(coping), show.residuals = TRUE)
+
+drop1(coping, test = "Chisq")
+
+
+#run and print the  regression model again without non-significant interaction(s)
+coping_final <- lmer(coping_appraisal ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(coping_final), show.residuals = TRUE)
+confint(coping_final, method = "Wald")
+
+drop1coping <- drop1(coping_final, test = "Chisq")
+print(drop1coping)
+
+sim_res_coping_final <- simulateResiduals(coping_final)
+plot(sim_res_coping_final)
+testDispersion(sim_res_coping_final)
+
+```
+
+```{r barriers, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_barriers <- pz_data %>% 
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+overall_stats_barriers
+
+
+#just group
+player_stats_barriers <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+player_stats_barriers
+
+nonplayer_stats_barriers <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+nonplayer_stats_barriers
+
+
+#just condition
+virtual_stats_barriers <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+virtual_stats_barriers
+
+real_stats_barriers <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+real_stats_barriers
+
+
+#just taxon
+mammal_stats_barriers <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+mammal_stats_barriers
+
+reptile_stats_barriers <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+reptile_stats_barriers
+
+
+#grouped by conditions and taxa
+p_r_stats_barriers <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+p_r_stats_barriers #overall for players x real
+
+p_r_mam_stats_barriers <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+p_r_mam_stats_barriers #overall for players x real x mammal
+
+p_r_rep_stats_barriers <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+p_r_rep_stats_barriers #overall for players x real x reptile
+
+
+np_r_stats_barriers <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+np_r_stats_barriers #overall for nonplayers x real
+
+np_r_mam_stats_barriers <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+np_r_mam_stats_barriers #overall for nonplayers x real x mammal
+
+np_r_rep_stats_barriers <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+np_r_rep_stats_barriers #overall for nonplayers x real x reptile
+
+
+p_v_stats_barriers <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+p_v_stats_barriers #overall for players x virtual
+
+p_v_mam_stats_barriers <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+p_v_mam_stats_barriers #overall for players x virtual x mammal
+
+p_v_rep_stats_barriers <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+p_v_rep_stats_barriers #overall for players x virtual x reptile
+
+
+np_v_stats_barriers <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+np_v_stats_barriers #overall for nonplayers x virtual
+
+np_v_mam_stats_barriers <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+np_v_mam_stats_barriers #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_barriers <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_barriers = min(barriers),
+            max_barriers = max(barriers),
+            mean_barriers = mean(barriers),
+            sd_barriers = sd(barriers))
+np_v_rep_stats_barriers #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_barriers, player_stats_barriers, nonplayer_stats_barriers, virtual_stats_barriers, real_stats_barriers, mammal_stats_barriers, reptile_stats_barriers, p_r_stats_barriers, p_r_mam_stats_barriers, p_r_rep_stats_barriers, np_r_stats_barriers, np_r_mam_stats_barriers, np_r_rep_stats_barriers, p_v_stats_barriers, p_v_mam_stats_barriers, p_v_rep_stats_barriers, np_v_stats_barriers, np_v_mam_stats_barriers, np_v_rep_stats_barriers), .id = "id")
+
+
+#checking internal consistency
+cost_combined_mam <- psych::polychoric(pz_data_short[, c("cost1_mam", "cost2_mam", "cost3_mam")])
+cost_combined_mam_alpha <- psych::alpha(cost_combined_mam$rho)
+print(cost_combined_mam_alpha) #good
+ci.reliability(S = cost_combined_mam$rho, N = 550, type = "alpha", interval.type = "normal")
+
+cost_combined_rep <- psych::polychoric(pz_data_short[, c("cost1_rep", "cost2_rep", "cost3_rep")])
+cost_combined_rep_alpha <- psych::alpha(cost_combined_rep$rho)
+print(cost_combined_rep_alpha) #good
+ci.reliability(S = cost_combined_rep$rho, N = 550, type = "alpha", interval.type = "normal")
+
+reward_combined_mam <- psych::polychoric(pz_data_short[, c("reward1_mam", "reward2_mam", "reward3_mam")])
+reward_combined_mam_alpha <- psych::alpha(reward_combined_mam$rho)
+print(reward_combined_mam_alpha) #good
+ci.reliability(S = reward_combined_mam$rho, N = 550, type = "alpha", interval.type = "normal")
+
+reward_combined_rep <- psych::polychoric(pz_data_short[, c("reward1_rep", "reward2_rep", "reward3_rep")])
+reward_combined_rep_alpha <- psych::alpha(reward_combined_rep$rho)
+print(reward_combined_rep_alpha) #good
+ci.reliability(S = reward_combined_rep$rho, N = 550, type = "alpha", interval.type = "normal")
+
+barriers_mam <- psych::alpha(pz_data_short[, c("response_cost_mam", "maladaptive_rewards_mam")])
+print(barriers_mam, short = FALSE)
+
+barriers_rep <- psych::alpha(pz_data_short[, c("response_cost_rep", "maladaptive_rewards_rep")])
+print(barriers_rep, short = FALSE)
+
+
+#exploratory regression 
+barriers_explor <- lmer(barriers ~ pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(barriers_explor), show.residuals = TRUE)
+
+
+#run and print the model
+barriers <- lmer(barriers ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + pz_hours.z:virtual + pz_hours.z:mammal + pz_recency:virtual + pz_recency:mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(barriers), show.residuals = TRUE)
+
+drop1(barriers, test = "Chisq") 
+
+
+#run and print the  regression model again without non-significant interaction(s)
+barriers_final <- lmer(barriers ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + mammal + (1|participant_id), data = pz_data, control = lmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=1e5)))
+print(summary(barriers_final), show.residuals = TRUE)
+confint(barriers_final, method = "Wald")
+
+drop1barriers <- drop1(barriers_final, test = "Chisq")
+print(drop1barriers)
+
+sim_res_barriers_final <- simulateResiduals(barriers_final)
+plot(sim_res_barriers_final)
+testDispersion(sim_res_barriers_final)
+
+
+#plotting effects
+barriers_taxon_eff <- ggpredict(barriers_final, terms = c("mammal"))
+plot(barriers_taxon_eff, connect_lines = TRUE) +
+  theme_bw() + 
+  theme(
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+```
+
+```{r willingness to help, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_willingness_to_help <- pz_data %>% 
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+overall_stats_willingness_to_help
+
+
+#just group
+player_stats_willingness_to_help <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+player_stats_willingness_to_help
+
+nonplayer_stats_willingness_to_help <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+nonplayer_stats_willingness_to_help
+
+
+#just condition
+virtual_stats_willingness_to_help <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+virtual_stats_willingness_to_help
+
+real_stats_willingness_to_help <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+real_stats_willingness_to_help
+
+
+#just taxon
+mammal_stats_willingness_to_help <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+mammal_stats_willingness_to_help
+
+reptile_stats_willingness_to_help <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+reptile_stats_willingness_to_help
+
+
+#grouped by conditions and taxa
+p_r_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+p_r_stats_willingness_to_help #overall for players x real
+
+p_r_mam_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+p_r_mam_stats_willingness_to_help #overall for players x real x mammal
+
+p_r_rep_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+p_r_rep_stats_willingness_to_help #overall for players x real x reptile
+
+
+np_r_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+np_r_stats_willingness_to_help #overall for nonplayers x real
+
+np_r_mam_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+np_r_mam_stats_willingness_to_help #overall for nonplayers x real x mammal
+
+np_r_rep_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+np_r_rep_stats_willingness_to_help #overall for nonplayers x real x reptile
+
+
+p_v_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+p_v_stats_willingness_to_help #overall for players x virtual
+
+p_v_mam_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+p_v_mam_stats_willingness_to_help #overall for players x virtual x mammal
+
+p_v_rep_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+p_v_rep_stats_willingness_to_help #overall for players x virtual x reptile
+
+
+np_v_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+np_v_stats_willingness_to_help #overall for nonplayers x virtual
+
+np_v_mam_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+np_v_mam_stats_willingness_to_help #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_willingness_to_help <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_willingness_to_help = min(willingness_to_help),
+            max_willingness_to_help = max(willingness_to_help),
+            mean_willingness_to_help = mean(willingness_to_help),
+            sd_willingness_to_help = sd(willingness_to_help))
+np_v_rep_stats_willingness_to_help #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_willingness_to_help, player_stats_willingness_to_help, nonplayer_stats_willingness_to_help, virtual_stats_willingness_to_help, real_stats_willingness_to_help, mammal_stats_willingness_to_help, reptile_stats_willingness_to_help, p_r_stats_willingness_to_help, p_r_mam_stats_willingness_to_help, p_r_rep_stats_willingness_to_help, np_r_stats_willingness_to_help, np_r_mam_stats_willingness_to_help, np_r_rep_stats_willingness_to_help, p_v_stats_willingness_to_help, p_v_mam_stats_willingness_to_help, p_v_rep_stats_willingness_to_help, np_v_stats_willingness_to_help, np_v_mam_stats_willingness_to_help, np_v_rep_stats_willingness_to_help), .id = "id")
+
+
+#order factor levels
+pz_data$willingness_to_help <- factor(pz_data$willingness_to_help, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+
+
+#mammals wtp
+pz_data_short$willingness_to_help_mam <- factor(pz_data_short$willingness_to_help_mam, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+
+
+#exploratory regression
+wtp_mam_explor <- clm(willingness_to_help_mam ~ pz_recency + pz_hours.z + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short)
+print(summary(wtp_mam_explor))
+
+#wtp mammals
+wtp_mam <- clm(willingness_to_help_mam ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short)
+print(summary(wtp_mam))
+confint(wtp_mam, method = "Wald")
+
+drop1(wtp_mam, test = "Chisq")
+
+#interactions not sig
+wtp_mam_final <- clm(willingness_to_help_mam ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam, data = pz_data_short)
+print(summary(wtp_mam_final))
+confint(wtp_mam_final, method = "Wald")
+
+drop1(wtp_mam_final, test = "Chisq")
+
+#plot residual vs predicted
+sres_mam_age.z <- resids(wtp_mam_final)
+p17 <- autoplot.resid(sres_mam_age.z, what = "covariate", x = as.numeric(pz_data_short$age.z))
+p18 <- autoplot.resid(sres_mam_age.z, what = "qq", x = pz_data_short$age.z, distribution = qnorm)
+
+sres_mam_nr <- resids(wtp_mam_final)
+p19 <- autoplot.resid(sres_mam_nr, what = "covariate", x = as.numeric(pz_data_short$nr))
+p20 <- autoplot.resid(sres_mam_nr, what = "qq", x = pz_data_short$nr, distribution = qnorm)
+
+sres_mam_pz_hours.z <- resids(wtp_mam_final)
+p21 <- autoplot.resid(sres_mam_pz_hours.z, what = "covariate", x = as.numeric(pz_data_short$pz_hours.z))
+p22 <- autoplot.resid(sres_mam_pz_hours.z, what = "qq", x = pz_data_short$pz_hours.z, distribution = qnorm)
+
+sres_mam_iat_dscore <- resids(wtp_mam_final)
+p23 <- autoplot.resid(sres_mam_iat_dscore, what = "covariate", x = as.numeric(pz_data_short$iat_dscore))
+p24 <- autoplot.resid(sres_mam_iat_dscore, what = "qq", x = pz_data_short$iat_dscore, distribution = qnorm)
+
+sres_mam_explicit_pref <- resids(wtp_mam_final)
+p25 <- autoplot.resid(sres_mam_explicit_pref, what = "covariate", x = as.numeric(pz_data_short$explicit_pref_mam))
+p26 <- autoplot.resid(sres_mam_explicit_pref, what = "qq", x = pz_data_short$explicit_pref_mam, distribution = qnorm)
+
+sres_mam_threat_appraisal <- resids(wtp_mam_final)
+p27 <- autoplot.resid(sres_mam_threat_appraisal, what = "covariate", x = as.numeric(pz_data_short$threat_appraisal_mam))
+p28 <- autoplot.resid(sres_mam_threat_appraisal, what = "qq", x = pz_data_short$threat_appraisal_mam, distribution = qnorm)
+
+sres_mam_coping_appraisal <- resids(wtp_mam_final)
+p29 <- autoplot.resid(sres_mam_coping_appraisal, what = "covariate", x = as.numeric(pz_data_short$coping_appraisal_mam))
+p30 <- autoplot.resid(sres_mam_coping_appraisal, what = "qq", x = pz_data_short$coping_appraisal_mam, distribution = qnorm)
+
+sres_mam_barriers <- resids(wtp_mam_final)
+p31 <- autoplot.resid(sres_mam_barriers, what = "covariate", x = as.numeric(pz_data_short$barriers_mam))
+p32 <- autoplot.resid(sres_mam_barriers, what = "qq", x = pz_data_short$barriers_mam, distribution = qnorm)
+
+grid.arrange(p17, p18, p19, p20, p21, p22, p23, p24, p25, p26, p27, p28, p29, p30, p31, p32, ncol = 4)
+
+
+#nominal and scale tests
+nominal_test(wtp_mam_final)
+scale_test(wtp_mam_final)
+
+#fixing error!
+pz_data_short$age.z <- as.numeric(pz_data_short$age.z)
+pz_data_short$pz_hours.z <- as.numeric(pz_data_short$pz_hours.z)
+
+wtp_mam_final <- clm(willingness_to_help_mam ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam, data = pz_data_short)
+
+#plotting effects
+wtp_mam_recency_eff <- ggpredict(wtp_mam_final, terms = "pz_recency")
+plot(wtp_mam_recency_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+wtp_mam_virtual_eff <- ggpredict(wtp_mam_final, terms = "virtual")
+plot(wtp_mam_virtual_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+wtp_mam_threat_eff <- ggpredict(wtp_mam_final, terms = "threat_appraisal_mam")
+plot(wtp_mam_threat_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+wtp_mam_coping_eff <- ggpredict(wtp_mam_final, terms = "coping_appraisal_mam")
+plot(wtp_mam_coping_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+wtp_mam_barriers_eff <- ggpredict(wtp_mam_final, terms = "barriers_mam")
+plot(wtp_mam_barriers_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+
+#reptiles wtp
+pz_data_short$willingness_to_help_rep <- factor(pz_data_short$willingness_to_help_rep, ordered = TRUE,  levels=c('1', '2', '3', '4', '5'))
+
+
+#exploratory regression
+wtp_rep_explor <- clm(willingness_to_help_rep ~ pz_recency + pz_hours.z + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short)
+print(summary(wtp_rep_explor))
+confint(wtp_rep_explor, method = "Wald")
+
+#wtp reptiles
+wtp_rep <- clm(willingness_to_help_rep ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep + pz_hours.z:virtual + + pz_recency:virtual, data = pz_data_short)
+print(summary(wtp_rep))
+confint(wtp_rep, method = "Wald")
+
+drop1(wtp_rep, test = "Chisq")
+
+#interactions not sig
+wtp_rep_final <- clm(willingness_to_help_rep ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep, data = pz_data_short)
+print(summary(wtp_rep_final))
+confint(wtp_rep_final, method = "Wald")
+
+drop1(wtp_rep_final, test = "Chisq")
+
+
+#plot residual vs predicted
+sres_rep_age.z <- resids(wtp_rep_final)
+p33 <- autoplot.resid(sres_rep_age.z, what = "covariate", x = as.numeric(pz_data_short$age.z))
+p34 <- autoplot.resid(sres_rep_age.z, what = "qq", x = pz_data_short$age.z, distribution = qnorm)
+
+sres_rep_nr <- resids(wtp_rep_final)
+p35 <- autoplot.resid(sres_rep_nr, what = "covariate", x = as.numeric(pz_data_short$nr))
+p36 <- autoplot.resid(sres_rep_nr, what = "qq", x = pz_data_short$nr, distribution = qnorm)
+
+sres_rep_pz_hours.z <- resids(wtp_rep_final)
+p37 <- autoplot.resid(sres_rep_pz_hours.z, what = "covariate", x = as.numeric(pz_data_short$pz_hours.z))
+p38 <- autoplot.resid(sres_rep_pz_hours.z, what = "qq", x = pz_data_short$pz_hours.z, distribution = qnorm)
+
+sres_rep_iat_dscore <- resids(wtp_rep_final)
+p39 <- autoplot.resid(sres_rep_iat_dscore, what = "covariate", x = as.numeric(pz_data_short$iat_dscore))
+p40 <- autoplot.resid(sres_rep_iat_dscore, what = "qq", x = pz_data_short$iat_dscore, distribution = qnorm)
+
+sres_rep_explicit_pref <- resids(wtp_rep_final)
+p41 <- autoplot.resid(sres_rep_explicit_pref, what = "covariate", x = as.numeric(pz_data_short$explicit_pref_rep))
+p42 <- autoplot.resid(sres_rep_explicit_pref, what = "qq", x = pz_data_short$explicit_pref_rep, distribution = qnorm)
+
+sres_rep_threat_appraisal <- resids(wtp_rep_final)
+p43 <- autoplot.resid(sres_rep_threat_appraisal, what = "covariate", x = as.numeric(pz_data_short$threat_appraisal_rep))
+p44 <- autoplot.resid(sres_rep_threat_appraisal, what = "qq", x = pz_data_short$threat_appraisal_rep, distribution = qnorm)
+
+sres_rep_coping_appraisal <- resids(wtp_rep_final)
+p45 <- autoplot.resid(sres_rep_coping_appraisal, what = "covariate", x = as.numeric(pz_data_short$coping_appraisal_rep))
+p46 <- autoplot.resid(sres_rep_coping_appraisal, what = "qq", x = pz_data_short$coping_appraisal_rep, distribution = qnorm)
+
+sres_rep_barriers <- resids(wtp_rep_final)
+p47 <- autoplot.resid(sres_rep_barriers, what = "covariate", x = as.numeric(pz_data_short$barriers_rep))
+p48 <- autoplot.resid(sres_rep_barriers, what = "qq", x = pz_data_short$barriers_rep, distribution = qnorm)
+
+grid.arrange(p33, p34, p35, p36, p37, p38, p39, p40, p41, p42, p43, p44, p45, p46, p47, p48, ncol = 4)
+
+
+#nominal and scale tests
+nominal_test(wtp_rep_final)
+scale_test(wtp_rep_final)
+
+#fixing errors!
+wtp_rep_final <- clm(willingness_to_help_rep ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep, data = pz_data_short)
+print(summary(wtp_rep_final))
+
+#plotting effects
+wtp_rep_expref_eff <- ggpredict(wtp_rep_final, terms = "explicit_pref_rep")
+plot(wtp_rep_expref_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+wtp_rep_threat_eff <- ggpredict(wtp_rep_final, terms = "threat_appraisal_rep")
+plot(wtp_rep_threat_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+wtp_rep_coping_eff <- ggpredict(wtp_rep_final, terms = "coping_appraisal_rep")
+plot(wtp_rep_coping_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+wtp_rep_barriers_eff <- ggpredict(wtp_rep_final, terms = "barriers_rep")
+plot(wtp_rep_barriers_eff, connect_lines = TRUE) + facet_wrap(~ response.level, ncol = 1) + 
+  theme_bw() + 
+  theme(
+    strip.background = element_rect(fill = "#CFE4FF", linewidth = 0.8),
+    strip.text = element_text(face = "bold", size = 11),
+    panel.border = element_rect(fill = NA, linewidth = 0.8),
+    axis.ticks.length = unit(-0.15, "cm"),
+    axis.text.x = element_text(size = 8, margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    axis.title = element_text(size = 10))
+
+```
+
+```{r donations, include=TRUE, echo=TRUE}
+
+#overall summary stats (regardless of condition or taxa)
+overall_stats_donated <- pz_data %>% 
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+overall_stats_donated
+
+
+#just group
+player_stats_donated <- pz_data %>%
+  filter(player =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+player_stats_donated
+
+nonplayer_stats_donated <- pz_data %>%
+  filter(player =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+nonplayer_stats_donated
+
+
+#just condition
+virtual_stats_donated <- pz_data %>%
+  filter(virtual =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+virtual_stats_donated
+
+real_stats_donated <- pz_data %>%
+  filter(virtual =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+real_stats_donated
+
+
+#just taxon
+mammal_stats_donated <- pz_data %>%
+  filter(mammal =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+mammal_stats_donated
+
+reptile_stats_donated <- pz_data %>%
+  filter(mammal =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+reptile_stats_donated
+
+
+#grouped by conditions and taxa
+p_r_stats_donated <- pz_data %>% 
+  filter(player =="1", virtual =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+p_r_stats_donated #overall for players x real
+
+p_r_mam_stats_donated <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+p_r_mam_stats_donated #overall for players x real x mammal
+
+p_r_rep_stats_donated <- pz_data %>% 
+  filter(player =="1", virtual =="0", mammal =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+p_r_rep_stats_donated #overall for players x real x reptile
+
+
+np_r_stats_donated <- pz_data %>% 
+  filter(player =="0", virtual =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+np_r_stats_donated #overall for nonplayers x real
+
+np_r_mam_stats_donated <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+np_r_mam_stats_donated #overall for nonplayers x real x mammal
+
+np_r_rep_stats_donated <- pz_data %>% 
+  filter(player =="0", virtual =="0", mammal =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+np_r_rep_stats_donated #overall for nonplayers x real x reptile
+
+
+p_v_stats_donated <- pz_data %>% 
+  filter(player =="1", virtual =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+p_v_stats_donated #overall for players x virtual
+
+p_v_mam_stats_donated <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+p_v_mam_stats_donated #overall for players x virtual x mammal
+
+p_v_rep_stats_donated <- pz_data %>% 
+  filter(player =="1", virtual =="1", mammal =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+p_v_rep_stats_donated #overall for players x virtual x reptile
+
+
+np_v_stats_donated <- pz_data %>% 
+  filter(player =="0", virtual =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+np_v_stats_donated #overall for nonplayers x virtual
+
+np_v_mam_stats_donated <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="1") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+np_v_mam_stats_donated #overall for nonplayers x virtual x mammal
+
+np_v_rep_stats_donated <- pz_data %>% 
+  filter(player =="0", virtual =="1", mammal =="0") %>%
+  summarise(min_donated = min(donated),
+            max_donated = max(donated),
+            mean_donated = mean(donated),
+            sd_donated = sd(donated))
+np_v_rep_stats_donated #overall for nonplayers x virtual x reptile
+
+
+#combine all of the above into one table
+bind_rows(lst(overall_stats_donated, player_stats_donated, nonplayer_stats_donated, real_stats_donated, virtual_stats_donated, mammal_stats_donated, reptile_stats_donated, p_r_stats_donated, p_r_mam_stats_donated, p_r_rep_stats_donated, np_r_stats_donated, np_r_mam_stats_donated, np_r_rep_stats_donated, p_v_stats_donated, p_v_mam_stats_donated, p_v_rep_stats_donated, np_v_stats_donated, np_v_mam_stats_donated, np_v_rep_stats_donated), .id = "id")
+
+
+#create compositional outcomes for the dirichlet models
+y_donation <- DR_data(pz_data_short[, c("donated_prop_mam", "donated_prop_rep", "kept_prop")], trafo = TRUE)
+
+
+#change willingess back to unordered factor, so output compares each level to reference
+pz_data_short$willingness_to_help_mam <- factor(pz_data_short$willingness_to_help_mam, ordered = FALSE)
+pz_data_short$willingness_to_help_rep <- factor(pz_data_short$willingness_to_help_rep, ordered = FALSE)
+
+#check collinearity
+car::vif(glm(donated_mam ~ age + gender + education + nr + donation_habits + pz_recency + pz_hours + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam + willingness_to_help_mam, data = pz_data_short))
+
+car::vif(glm(donated_rep ~ age + gender + education + nr + donation_habits + pz_recency + pz_hours + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep + willingness_to_help_rep, data = pz_data_short))
+
+
+#exploratory regression (mam)
+all_donations_mam_explor <- DirichReg(y_donation ~ pz_recency + pz_hours.z + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam + willingness_to_help_mam + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short, model = "common")
+print(summary(all_donations_mam_explor), show.residuals = TRUE)
+
+
+#run and print dirichlet model (mam)
+all_donations_mam <- DirichReg(y_donation ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam + willingness_to_help_mam + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short, model = "common")
+print(summary(all_donations_mam), show.residuals = TRUE)
+confint.DirichletRegModel(all_donations_mam, method = "Wald")
+
+drop1(all_donations_mam, test = "Chisq")
+
+
+#drop non-sig interaction
+all_donations_mam_final <- DirichReg(y_donation ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_mam + iat_dscore + explicit_pref_mam + status_correct_mam + threat_appraisal_mam + coping_appraisal_mam + barriers_mam + willingness_to_help_mam + pz_hours.z:virtual, data = pz_data_short, model = "common")
+print(summary(all_donations_mam_final), show.residuals = TRUE)
+confint.DirichletRegModel(all_donations_mam_final, method = "Wald")
+
+drop1donationsmam <- drop1(all_donations_mam_final, test = "Chisq")
+print(drop1donationsmam)
+
+
+#plotting effects
+donation_interaction <- ggplot(pz_data_short, aes(x = pz_hours.z, y = donated_prop_mam, color = virtual, fill = virtual)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE, alpha = 0.2) +     
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                     labels = c("0" = "R", "1" = "V")) +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "V")) + 
+  labs(y = "Proportion donated to mammals", x = "Hours of play",
+       title = NULL,
+       color = NULL,
+       fill = NULL) +  
+  theme_bw() + 
+  theme(
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.3),
+    panel.grid.major.y = element_line(color = "grey92", linewidth = 0.3),
+    axis.line = element_line(color = "black", linewidth = 0.3),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.3),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.3),
+    axis.title.x = element_text(margin = margin(t = 10), family = "serif", face = "bold", size = 11),
+    axis.title.y = element_text(margin = margin(r = 10), family = "serif", face = "bold", size = 11),
+    axis.text = element_text(size = 8, family = "sans", color = "black"),
+    axis.ticks.length  = unit(0.15, "cm"),
+    axis.text.x = element_text(margin = margin(t = 8)),
+    axis.text.y = element_text(margin = margin(r = 8)),
+    aspect.ratio = 1/2,
+    legend.position = "right")
+
+ggsave("donation_interaction.png",
+       width = 7,
+       height = 3.5,
+       units = "in",
+       dpi = 300)
+
+
+ggplot(pz_data_short, aes(y = iat_dscore, x = donated_prop_mam)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE) +     
+  labs(title = "main effect: iat_dscore",
+       y = "dscore",
+       x = "proportion donated to mammals") +
+  theme_minimal()
+
+ggplot(pz_data_short, aes(x = explicit_pref_mam, y = donated_prop_mam)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE) +     
+  labs(title = "main effect: explicit attitudes",
+       x = "explicit attitudes",
+       y = "proportion donated to mammals") +
+  theme_minimal()
+
+ggplot(pz_data_short, aes(x = barriers_rep, y = donated_prop_mam)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE) +     
+  labs(title = "main effect: barriers",
+       x = "barriers",
+       y = "proportion donated to mammals") +
+  theme_minimal()
+
+
+#exploratory regression (rep)
+all_donations_rep_explor <- DirichReg(y_donation ~ pz_recency + pz_hours.z + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep + willingness_to_help_rep + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short, model = "common")
+print(summary(all_donations_rep_explor), show.residuals = TRUE)
+
+
+#run and print dirichlet model (rep)
+all_donations_rep <- DirichReg(y_donation ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep + willingness_to_help_rep + pz_hours.z:virtual + pz_recency:virtual, data = pz_data_short, model = "common")
+print(summary(all_donations_rep), show.residuals = TRUE)
+confint.DirichletRegModel(all_donations_rep, method = "Wald")
+
+drop1(all_donations_rep, test = "Chisq")
+
+
+#drop non-sig interactions
+all_donations_rep_final <- DirichReg(y_donation ~ age.z + gender + education + nr + donation_habits + pz_recency + pz_hours.z + virtual + id_correct_rep + iat_dscore + explicit_pref_rep + status_correct_rep + threat_appraisal_rep + coping_appraisal_rep + barriers_rep + willingness_to_help_rep, data = pz_data_short, model = "common")
+print(summary(all_donations_rep_final), show.residuals = TRUE)
+confint.DirichletRegModel(all_donations_rep_final, method = "Wald")
+
+drop1donationsrep <- drop1(all_donations_rep_final, test = "Chisq")
+print(drop1donationsrep)
+
+
+#plotting effects
+ggplot(pz_data_short, aes(x = id_correct_rep, y = donated_prop_rep)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE) +     
+  labs(title = "main effect: know names",
+       x = "knowledge score (name)",
+       y = "proportion donated to reptiles") +
+  theme_minimal()
+
+ggplot(pz_data_short, aes(y = iat_dscore, x = donated_prop_rep)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE) +     
+  labs(title = "main effect: iat_dscore",
+       y = "dscore",
+       x = "proportion donated to reptiles") +
+  theme_minimal()
+
+ggplot(pz_data_short, aes(x = explicit_pref_rep, y = donated_prop_rep)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE) +     
+  labs(title = "main effect: explicit attitudes",
+       x = "explicit attitudes",
+       y = "proportion donated to reptiles") +
+  theme_minimal()
+
+ggplot(pz_data_short, aes(x = barriers_rep, y = donated_prop_rep)) +
+  geom_point(alpha = 0.3) +                   
+  geom_smooth(method = "lm", se = TRUE) +     
+  labs(title = "main effect: barriers",
+       x = "barriers",
+       y = "proportion donated to reptiles") +
+  theme_minimal()
+
+
+
+#extracting residuals and fitted values for dirichlet models
+resid_vals_mam <- residuals(all_donations_mam_final, type = "standardized")
+fitted_vals_mam <- predict(all_donations_mam_final)
+
+resid_vals_rep <- residuals(all_donations_rep_final, type = "standardized")
+fitted_vals_rep <- predict(all_donations_rep_final)
+
+#plotting diagnostics
+plot(fitted_vals_mam[, 1], resid_vals_mam[, 1], xlab = "fitted values (mammal)", ylab = "standardised residuals",
+     main = "residuals vs fitted (mammal)", pch = 1, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+qqnorm(resid_vals_mam[,1], main = "QQ plot for residuals (mammal)", col="blue")
+qqline(resid_vals_mam[,1], col = "red") 
+
+plot(fitted_vals_mam[, 2], resid_vals_mam[, 2], xlab = "fitted values (mammal)", ylab = "standardised residuals",
+     main = "residuals vs fitted (mammal)", pch = 1, col = "green")
+abline(h = 0, col = "red", lwd = 2)
+qqnorm(resid_vals_mam[,2], main = "QQ plot for residuals (mammal)", col="green")
+qqline(resid_vals_mam[,2], col = "red") 
+
+plot(fitted_vals_mam[, 3], resid_vals_mam[, 3], xlab = "fitted values (mammal)", ylab = "standardised residuals",
+     main = "residuals vs fitted (mammal)", pch = 1, col = "orange")
+abline(h = 0, col = "red", lwd = 2)
+qqnorm(resid_vals_mam[,3], main = "QQ plot for residuals (mammal)", col="orange")
+qqline(resid_vals_mam[,3], col = "red") 
+
+
+plot(fitted_vals_rep[, 1], resid_vals_rep[, 1], xlab = "fitted values (reptile)", ylab = "standardised residuals",
+     main = "residuals vs fitted (reptile)", pch = 1, col = "blue")
+abline(h = 0, col = "red", lwd = 2)
+qqnorm(resid_vals_rep[,1], main = "QQ plot for residuals (reptile)", col="blue")
+qqline(resid_vals_rep[,1], col = "red") 
+
+plot(fitted_vals_rep[, 2], resid_vals_rep[, 2], xlab = "fitted values (reptile)", ylab = "Standardized Residuals",
+     main = "residuals vs fitted (reptile)", pch = 1, col = "green")
+abline(h = 0, col = "red", lwd = 2)
+qqnorm(resid_vals_rep[,2], main = "QQ plot for residuals (reptile)", col="green")
+qqline(resid_vals_rep[,2], col = "red") 
+
+plot(fitted_vals_rep[, 3], resid_vals_rep[, 3], xlab = "fitted values (reptile)", ylab = "Standardized Residuals",
+     main = "residuals vs fitted (reptile)", pch = 1, col = "orange")
+abline(h = 0, col = "red", lwd = 2)
+qqnorm(resid_vals_rep[,3], main = "QQ plot for residuals (reptile)", col="orange")
+qqline(resid_vals_rep[,3], col = "red") 
+
+```
+
+```{r making knowledge plots, include=TRUE, echo=TRUE}
+
+#plot for group x condition x taxon for name
+pz_data$id_correct <- factor(pz_data$id_correct, ordered = TRUE,  levels=c('0', '1', '2', '3', '4', '5'))
+
+group_names <- c(
+  "0" = "NON-PLAYER",
+  "1" = "PLAYER")
+
+taxon_names <- c(
+  "0" = "Reptile",
+  "1" = "Mammal")
+
+condition_names <- c(
+  "0" = "REAL",
+  "1" = "VIRTUAL")
+
+pz_data <- pz_data %>%
+  mutate(fill_group_name = as.character(paste(`mammal`, id_correct, sep = "_")))
+
+piyg_full <- hcl.colors(11, "PiYG")
+mam_palette <-  piyg_full[1:6]
+rep_palette <- piyg_full[7:11]
+
+custom_colors <- c(
+  "1_0" = "#DCDCDC",
+  "1_1" = mam_palette[5], "1_2" = mam_palette[4], "1_3" = mam_palette[3], "1_4" = mam_palette[2], "1_5" = mam_palette[1],
+  "0_0" = "#DCDCDC", 
+  "0_1" = rep_palette[1], "0_2" = rep_palette[2], "0_3" = rep_palette[3], "0_4" = rep_palette[4], "0_5" = rep_palette[5])
+
+legend_labels <- c(
+  "0_5" = "5", "0_4" = "4", "0_3" = "3", 
+  "0_2" = "2", "0_1" = "1", "0_0" = "0",
+  "1_5" = "5", "1_4" = "4", "1_3" = "3", 
+  "1_2" = "2", "1_1" = "1", "1_0" = "0")
+
+legend_breaks <- c(
+  paste0("0_", 5:0),
+  paste0("1_", 5:0))
+
+
+know_name_updated_plot <- ggplot(pz_data, aes(y = mammal)) +
+  geom_bar(aes(fill = fill_group_name), 
+           position = position_fill(reverse = TRUE),
+           width = 0.9, color = "black", linewidth = 0.3) +
+  scale_fill_manual(values = custom_colors,
+                    breaks = legend_breaks,
+                    labels = function(y) {
+                      ifelse(grepl("^1_", y), "", gsub(".*_", "", y))},
+                    name = NULL) +
+  guides(fill = guide_legend(ncol = 2, byrow = FALSE,
+                             title = "    Score")) +
+  facet_nested(rows = vars(player, virtual),
+               labeller = labeller(player = group_names, virtual = condition_names),
+               strip = strip_nested(clip = "off"),
+               switch = "y") +
+  geom_label(aes(label = after_stat(ifelse(
+      (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, "", 
+      scales::percent(count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)], accuracy = 0.1))),
+      alpha = after_stat(ifelse(
+        (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, 0, 0.6)),
+      group = fill_group_name),
+      stat = "count",
+      fill = "white", color = "grey15", 
+      linewidth = 0, label.padding = unit(0.05, "lines"), size = 2.5, fontface = "bold",
+      position = position_fill(vjust = 0.5, reverse = TRUE)) +
+  scale_alpha_identity() +
+  labs(y = NULL, x = "Correct responses (name)") +
+  scale_y_discrete(labels = c("0" = "R", "1" = "M"), position = "right", expand = expansion(add = 0.75)) +
+  scale_x_continuous(expand = expansion(0), 
+                     labels = scales::percent_format(),
+                     breaks = seq(0.1, 0.9, by = 0.1)) +
+  theme_classic() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.title = element_text(face = "bold", size = 11, family = "serif"),
+    legend.position = "right",
+    legend.text = element_text(size = 7, family = "sans"),  
+    legend.key.spacing.x = unit(0.35, "lines"),
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(margin = margin(t=10), face = "bold", size = 12, hjust = 0.5),
+    axis.text = element_text(size = 8, family = "sans"),
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(face = "bold", size = 10, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 1.1/8,
+    plot.margin = margin(t = 10, r = 5, b = 5, l = 12))
+
+ggsave("know_name_updated_plot.png",
+       width = 8,
+       height = 4.5,
+       units = "in",
+       dpi = 300)
+
+
+
+#plot for group x condition x taxon for status
+pz_data$status_correct <- factor(pz_data$status_correct, ordered = TRUE,  levels=c('0', '1', '2', '3', '4', '5'))
+
+pz_data <- pz_data %>%
+  mutate(fill_group_status = as.character(paste(`mammal`, status_correct, sep = "_")))
+
+know_status_updated_plot <- ggplot(pz_data, aes(y = mammal)) +
+  geom_bar(aes(fill = fill_group_status), 
+           position = position_fill(reverse = TRUE),
+           width = 0.9, color = "black", linewidth = 0.3) +
+  scale_fill_manual(values = custom_colors,
+                    breaks = legend_breaks,
+                    labels = function(y) {
+                      ifelse(grepl("^1_", y), "", gsub(".*_", "", y))},
+                    name = NULL) +
+  guides(fill = guide_legend(ncol = 2, byrow = FALSE,
+                             title = "    Score")) +
+  facet_nested(rows = vars(player, virtual),
+               labeller = labeller(player = group_names, virtual = condition_names),
+               strip = strip_nested(clip = "off"),
+               switch = "y") +
+  geom_label(aes(label = after_stat(ifelse(
+      (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, "", 
+      scales::percent(count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)], accuracy = 0.1))),
+      alpha = after_stat(ifelse(
+        (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, 0, 0.6)),
+      group = fill_group_status),
+      stat = "count",
+      fill = "white", color = "grey15", 
+      linewidth = 0, label.padding = unit(0.05, "lines"), size = 2.5, fontface = "bold",
+      position = position_fill(vjust = 0.5, reverse = TRUE)) +
+  scale_alpha_identity() +
+  labs(y = NULL, x = "Correct responses (conservation status)") +
+  scale_y_discrete(labels = c("0" = "R", "1" = "M"), position = "right", expand = expansion(add = 0.75)) +
+  scale_x_continuous(expand = expansion(0), 
+                     labels = scales::percent_format(),
+                     breaks = seq(0.1, 0.9, by = 0.1)) +
+  theme_classic() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.title = element_text(face = "bold", size = 11, family = "serif"),
+    legend.position = "right",
+    legend.text = element_text(size = 7, family = "sans"),  
+    legend.key.spacing.x = unit(0.35, "lines"),
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(margin = margin(t=10), face = "bold", size = 12, hjust = 0.5),
+    axis.text = element_text(size = 8, family = "sans"),
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(face = "bold", size = 10, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 1.1/8,
+    plot.margin = margin(t = 5, r = 5, b = 10, l = 12))
+
+ggsave("know_status_updated_plot.png",
+       width = 8,
+       height = 4.5,
+       units = "in",
+       dpi = 300)
+
+
+know_combined_plot <- know_name_updated_plot / know_status_updated_plot +
+  plot_layout(guides = "collect") +
+  theme(legend.position = "right")
+ggsave("know_combined_plot.png",
+       width = 8,
+       height = 9,
+       units = "in",
+       dpi = 300)
+
+```
+
+```{r making explicit preference plots, include=TRUE, echo=TRUE}
+
+round(median(pz_data$explicit_pref), 2)
+
+explicit_pref_updated_plot <- ggplot() +
+  geom_jitter(data = subset(pz_data, mammal == "0"),
+              aes(x=mammal, y=explicit_pref, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) + 
+  geom_jitter(data = subset(pz_data, mammal == "1"),
+              aes(x=mammal, y=explicit_pref, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=explicit_pref, fill=mammal), 
+               color = "#4D9221", position = position_nudge(x=-0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=explicit_pref, fill=mammal), 
+               color = "#C51B7D", position = position_nudge(x=0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +  
+  stat_halfeye(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=explicit_pref, fill=mammal), 
+               adjust = .4, width = .7, scale = 1, color = "#C51B7D", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=-0.5), side = "left", show.legend = FALSE) + 
+  stat_halfeye(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=explicit_pref, fill=mammal), 
+               adjust = .4, width = .7, scale = 1,  color = "#4D9221", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=0.5), side = "right", show.legend = FALSE) +
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"), guide = "none") +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "M"),
+                    guide = guide_legend(label.position = "top", override.aes = list(alpha = 0.9))) +
+  facet_nested(~ player + virtual,
+               labeller = labeller(player = group_names, virtual = condition_names),
+               strip = strip_nested(clip = "off")) +
+  geom_hline(yintercept = 3.6, linetype = "solid", color = "#D3B238", linewidth = 0.75, alpha = 0.9) +
+  scale_y_continuous(limits = c(0.9, 5.1), breaks = seq(1, 5, by = 1), expand = expansion(0)) +
+  scale_x_discrete(labels = c("0" = "R", "1" = "M"), expand = expansion(0)) +
+  labs(y = "Explicit attitude ratings", x = NULL) +
+  theme_classic() +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "grey90", linewidth = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(margin = margin(t=7, r=10), family = "serif", face = "bold", size = 13, hjust = 0.5),
+    axis.text = element_text(size = 9, family = "sans"),    
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(family = "serif", face = "bold", size = 12, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.y = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 1.5,
+    plot.margin = margin(t = 10, r = 18, b = 10, l = 15))
+
+ggsave("explicit_pref_updated_plot.png",
+       width = 9,
+       height = 4.5,
+       units = "in",
+       dpi = 300)
+
+```
+
+```{r making IAT plots, include=TRUE, echo=TRUE}
+
+round(median(pz_data$iat_dscore), 2)
+
+IAT_plot <- ggplot() +
+  geom_jitter(data = subset(pz_data_short, virtual == "0"),
+              aes(y=iat_dscore, x=virtual, fill=virtual),
+              shape=21, color = "black", position=position_jitter(width = 0.12, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) + 
+  geom_jitter(data = subset(pz_data_short, virtual == "1"),
+              aes(y=iat_dscore, x=virtual, fill=virtual),
+              shape=21, color = "black", position=position_jitter(width = 0.12, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) + 
+  geom_boxplot(data = subset(pz_data_short, virtual == "0"),
+               aes(y=iat_dscore, x=virtual, fill=virtual), 
+               color = "#4D9221", position = position_nudge(x=-0.21), width=0.065, 
+               outlier.shape = NA, alpha=0, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data_short, virtual == "1"),
+               aes(y=iat_dscore, x=virtual, fill=virtual), 
+               color = "#C51B7D", position = position_nudge(x=.21), width=0.065, 
+               outlier.shape = NA, alpha=0, show.legend = FALSE) +
+  stat_halfeye(data = subset(pz_data_short, virtual == "0"),
+               aes(y=iat_dscore, x=virtual, fill=virtual), 
+               adjust = .33, width = .5, scale = 1, color = "#4D9221", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=-0.28), side = "left", show.legend = FALSE) + 
+  stat_halfeye(data = subset(pz_data_short, virtual == "1"),
+               aes(y=iat_dscore, x=virtual, fill=virtual), 
+               adjust = .33, width = .5, scale = 1, color = "#C51B7D", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=0.28), side = "right", show.legend = FALSE) + 
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"), guide = "none") +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "V"),
+                    guide = guide_legend(label.position = "top", override.aes = list(alpha = 0.9))) +
+  facet_grid(cols = vars(player),
+               labeller = labeller(player = group_names)) +
+  geom_hline(yintercept = 0.69, linetype = "solid", color = "#D3B238", linewidth = 0.9, alpha = 0.9) +
+  scale_y_continuous(limits = c(-0.8, 1.8), breaks = seq(-0.5, 1.5, by = 0.5), expand = expansion(0)) +
+  scale_x_discrete(labels = c("0" = "R", "1" = "V"), expand = expansion(0)) +
+  labs(y = "D Score", x = NULL) +
+  theme_classic() +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "grey90", linewidth = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(margin = margin(t=7, r=10), family = "serif", face = "bold", size = 13, hjust = 0.5),
+    axis.text = element_text(size = 9, family = "sans"),
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(family = "serif", face = "bold", size = 12, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.y = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 1.5,
+    plot.margin = margin(t = 10, r = 18, b = 10, l = 15))
+
+ggsave("IAT_plot.png",
+       width = 6,
+       height = 4.5,
+       units = "in",
+       dpi = 300)
+
+```
+
+```{r making PMT plots, include=TRUE, echo=TRUE}
+
+#threat
+round(median(pz_data$threat_appraisal), 2)
+
+threat_updated_plot <- ggplot() +
+  geom_jitter(data = subset(pz_data, mammal == "0"),
+              aes(x=mammal, y=threat_appraisal, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) + 
+  geom_jitter(data = subset(pz_data, mammal == "1"),
+              aes(x=mammal, y=threat_appraisal, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=threat_appraisal, fill=mammal), 
+               color = "#4D9221", position = position_nudge(x=-0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=threat_appraisal, fill=mammal), 
+               color = "#C51B7D", position = position_nudge(x=0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +  
+  stat_halfeye(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=threat_appraisal, fill=mammal), 
+               adjust = .4, width = .7, scale = 1.5, color = "#C51B7D", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=-0.5), side = "left", show.legend = FALSE) + 
+  stat_halfeye(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=threat_appraisal, fill=mammal), 
+               adjust = .4, width = .7, scale = 1.5,  color = "#4D9221", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=0.5), side = "right", show.legend = FALSE) +
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"), guide = "none") +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "M"),
+                    guide = guide_legend(label.position = "top", override.aes = list(alpha = 0.9))) +
+  facet_nested(~ player + virtual,
+               labeller = labeller(player = group_names, virtual = condition_names),
+               strip = strip_nested(clip = "off")) +
+  geom_hline(yintercept = 4.5, linetype = "solid", color = "#D3B238", linewidth = 0.75, alpha = 0.9) +
+  scale_y_continuous(limits = c(0.9, 5.1), breaks = seq(1, 5, by = 1), expand = expansion(0)) +
+  scale_x_discrete(labels = NULL, expand = expansion(0)) +
+  labs(y = "Threat appraisal ratings", x = NULL) +
+  theme_classic() +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_line(color = "grey90", linewidth = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(margin = margin(t=7, r=10), family = "serif", face = "bold", size = 12, hjust = 0.5),
+    axis.text = element_text(size = 9, family = "sans"),    
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(family = "serif", face = "bold", size = 12, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    strip.switch.pad.grid = unit(0, "in"),
+    panel.grid.major.y = element_line(color = "grey90", linewidth = 0.5),
+    aspect.ratio = 1.5,
+    plot.margin = margin(t = 10, r = 20, b = 0, l = 5))
+
+ggsave("threat_updated_plot.png",
+       width = 9,
+       height = 4,
+       units = "in",
+       dpi = 300)
+
+
+#coping
+round(median(pz_data$coping_appraisal), 2)
+
+coping_updated_plot <- ggplot() +
+  geom_jitter(data = subset(pz_data, mammal == "0"),
+              aes(x=mammal, y=coping_appraisal, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) + 
+  geom_jitter(data = subset(pz_data, mammal == "1"),
+              aes(x=mammal, y=coping_appraisal, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=coping_appraisal, fill=mammal), 
+               color = "#4D9221", position = position_nudge(x=-0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=coping_appraisal, fill=mammal), 
+               color = "#C51B7D", position = position_nudge(x=0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +  
+  stat_halfeye(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=coping_appraisal, fill=mammal), 
+               adjust = .4, width = .7, scale = 1, color = "#C51B7D", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=-0.5), side = "left", show.legend = FALSE) + 
+  stat_halfeye(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=coping_appraisal, fill=mammal), 
+               adjust = .4, width = .7, scale = 1,  color = "#4D9221", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=0.5), side = "right", show.legend = FALSE) +
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"), guide = "none") +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "M"),
+                    guide = guide_legend(label.position = "top", override.aes = list(alpha = 0.9))) +
+  facet_nested(~ player + virtual,
+               labeller = labeller(player = group_names, virtual = condition_names)) +
+  geom_hline(yintercept = 3.67, linetype = "solid", color = "#D3B238", linewidth = 0.75, alpha = 0.9) +
+  scale_y_continuous(limits = c(0.9, 5.1), breaks = seq(1, 5, by = 1), expand = expansion(0)) +
+  scale_x_discrete(labels = NULL, expand = expansion(0)) +
+  labs(y = "Coping appraisal ratings", x = NULL) +
+  theme_classic() +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_line(color = "grey90", linewidth = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(margin = margin(t=7, r=10), family = "serif", face = "bold", size = 12, hjust = 0.5),
+    axis.text = element_text(size = 9, family = "sans"),    
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_blank(),
+    strip.background = element_blank(),
+    panel.grid.major.y = element_line(color = "grey90", linewidth = 0.5),
+    aspect.ratio = 1.5,
+    plot.margin = margin(t = 0, r = 20, b = 0, l = 5))
+
+ggsave("coping_updated_plot.png",
+       width = 9,
+       height = 4,
+       units = "in",
+       dpi = 300)
+
+
+#barriers
+round(median(pz_data$barriers), 2)
+
+barriers_updated_plot <- ggplot() +
+  geom_jitter(data = subset(pz_data, mammal == "0"),
+              aes(x=mammal, y=barriers, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) + 
+  geom_jitter(data = subset(pz_data, mammal == "1"),
+              aes(x=mammal, y=barriers, fill=mammal),
+              shape=21, size = 1, color = "black", position=position_jitter(width = 0.15, height = 0.1, seed = 123), 
+              alpha=0.5, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=barriers, fill=mammal), 
+               color = "#4D9221", position = position_nudge(x=-0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=barriers, fill=mammal), 
+               color = "#C51B7D", position = position_nudge(x=0.35), width=0.15, linewidth = 0.25, outlier.shape = NA, 
+               alpha=0, show.legend = FALSE) +  
+  stat_halfeye(data = subset(pz_data, mammal == "0"),
+               aes(x=mammal, y=barriers, fill=mammal), 
+               adjust = .4, width = .7, scale = 1, color = "#C51B7D", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=-0.5), side = "left", show.legend = FALSE) + 
+  stat_halfeye(data = subset(pz_data, mammal == "1"),
+               aes(x=mammal, y=barriers, fill=mammal), 
+               adjust = .4, width = .7, scale = 1,  color = "#4D9221", alpha=0.3, 
+               point_interval = NULL, position = position_nudge(x=0.5), side = "right", show.legend = FALSE) +
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"), guide = "none") +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "M"),
+                    guide = guide_legend(label.position = "top", override.aes = list(alpha = 0.9))) +
+  facet_nested(~ player + virtual,
+               labeller = labeller(player = group_names, virtual = condition_names),
+               strip = strip_nested(clip = "off")) +
+  geom_hline(yintercept = 2.84, linetype = "solid", color = "#D3B238", linewidth = 0.75, alpha = 0.9) +
+  scale_y_continuous(limits = c(0.9, 5.1), breaks = seq(1, 5, by = 1), expand = expansion(0)) +
+  scale_x_discrete(labels = c("0" = "R", "1" = "M"), expand = expansion(0)) +
+  labs(y = "Perceived barriers ratings", x = NULL) +
+  theme_classic() +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "grey90", linewidth = 0.5),
+    axis.title.x = element_blank(),
+    axis.title.y = element_text(margin = margin(t=7, r=10), family = "serif", face = "bold", size = 12, hjust = 0.5),
+    axis.text = element_text(size = 9, family = "sans"),    
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_blank(),
+    strip.background = element_blank(),
+    panel.grid.major.y = element_line(color = "grey90", linewidth = 0.5),
+    aspect.ratio = 1.5,
+    plot.margin = margin(t = 0, r = 20, b = 10, l = 5))
+
+ggsave("barriers_updated_plot.png",
+       width = 9,
+       height = 4,
+       units = "in",
+       dpi = 300)
+
+
+#combined
+PMT_plots_updated <- threat_updated_plot / coping_updated_plot / barriers_updated_plot
+ggsave("PMT_plots_updated.png",
+       width = 9,
+       height = 10.5,
+       units = "in",
+       dpi = 300)
+
+```
+
+```{r making WTP plots, include=TRUE, echo=TRUE}
+
+pz_data <- pz_data %>%
+  mutate(fill_group_WTP = as.character(paste(`mammal`, willingness_to_help, sep = "_")))
+
+WTP_updated_plot <- ggplot(pz_data, aes(y = mammal)) +
+  geom_bar(aes(fill = fill_group_WTP), 
+           position = position_fill(reverse = TRUE),
+           width = 0.9, color = "black", linewidth = 0.3) +
+  scale_fill_manual(values = custom_colors,
+                    breaks = legend_breaks,
+                    labels = function(y) {
+                      ifelse(grepl("^1_", y), "", gsub(".*_", "", y))},
+                    name = NULL) +
+  guides(fill = guide_legend(ncol = 2, byrow = FALSE,
+                             title = " Response")) +
+  facet_nested(rows = vars(player, virtual),
+               labeller = labeller(player = group_names, virtual = condition_names),
+               strip = strip_nested(clip = "off"),
+               switch = "y") +
+  geom_label(aes(label = after_stat(ifelse(
+      (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, "", 
+      scales::percent(count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)], accuracy = 0.1))),
+      alpha = after_stat(ifelse(
+        (count / tapply(count, interaction(y, PANEL), sum)[interaction(y, PANEL)]) < 0.05, 0, 0.6)),
+      group = fill_group_WTP),
+      stat = "count",
+      fill = "white", color = "grey15", 
+      linewidth = 0, label.padding = unit(0.05, "lines"), size = 2.5, fontface = "bold",
+      position = position_fill(vjust = 0.5, reverse = TRUE)) +
+  scale_alpha_identity() +
+  labs(y = NULL, x = "Willingness to act") +
+  scale_y_discrete(labels = c("0" = "R", "1" = "M"), position = "right", expand = expansion(add = 0.75)) +
+  scale_x_continuous(expand = expansion(0), 
+                     labels = scales::percent_format(),
+                     breaks = seq(0.1, 0.9, by = 0.1)) +
+  theme_classic() +
+  theme(
+    text = element_text(family = "serif"),
+    legend.title = element_text(face = "bold", size = 11, family = "serif"),
+    legend.position = "right",
+    legend.text = element_text(size = 7, family = "sans"),  
+    legend.key.spacing.x = unit(0.35, "lines"),
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(margin = margin(t=10), face = "bold", size = 12, hjust = 0.5),
+    axis.text = element_text(size = 8, family = "sans"),
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(face = "bold", size = 10, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    strip.switch.pad.grid = unit(0, "in"),
+    aspect.ratio = 1.1/8,
+    plot.margin = margin(t = 15, r = 5, b = 15, l = 15))
+
+ggsave("WTP_updated_plot.png",
+       width = 8,
+       height = 4.5,
+       units = "in",
+       dpi = 300)
+
+```
+
+```{r making donation plots, include=TRUE, echo=TRUE}
+
+round(median(pz_data$donated), 2)
+
+donated_plot <- ggplot() +
+  geom_jitter(data = subset(pz_data, mammal == "0"),
+              aes(x=donated, y=mammal, fill=mammal),
+              shape=21, color = "black", position=position_jitter(width = 0.05, height = 0.15, seed = 123), alpha=0.5, show.legend = FALSE) + 
+  geom_jitter(data = subset(pz_data, mammal == "1"),
+              aes(x=donated, y=mammal, fill=mammal),
+              shape=21, color = "black", position=position_jitter(width = 0.05, height = 0.15, seed = 123), alpha=0.5, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "0"),
+               aes(x=donated, y=mammal, fill=mammal), 
+               color = "#4D9221", position = position_nudge(y=-0.35), width=0.18, outlier.shape = NA, alpha=0, show.legend = FALSE) +
+  geom_boxplot(data = subset(pz_data, mammal == "1"),
+               aes(x=donated, y=mammal, fill=mammal), 
+               color = "#C51B7D", position = position_nudge(y=0.35), width=0.18, outlier.shape = NA, alpha=0, show.legend = FALSE) +  
+  stat_halfeye(data = subset(pz_data, mammal == "0"),
+               aes(x=donated, y=mammal, fill=mammal), 
+               adjust = .5, width = .5, scale = 1, color = "#C51B7D", alpha=0.3, point_interval = NULL, position = position_nudge(y=-0.5), side = "left", show.legend = FALSE) + 
+  stat_halfeye(data = subset(pz_data, mammal == "1"),
+               aes(x=donated, y=mammal, fill=mammal), 
+               adjust = .5, width = .5, scale = 1,  color = "#4D9221", alpha=0.3, point_interval = NULL, position = position_nudge(y=0.5), side = "right", show.legend = FALSE) +
+  scale_color_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"), guide = "none") +
+  scale_fill_manual(values = c("0" = "#4D9221", "1" = "#C51B7D"),
+                    name = NULL,
+                    labels = c("0" = "R", "1" = "M"),
+                    guide = guide_legend(label.position = "top", override.aes = list(alpha = 0.9))) +
+  facet_nested(rows = vars(player, virtual),
+               labeller = labeller(player = group_names, virtual = condition_names),
+               strip = strip_nested(clip = "off"),
+               switch = "y") +
+  geom_vline(xintercept = 5, linetype = "solid", color = "#D3B238", linewidth = 0.9, alpha = 0.9) +
+  scale_x_continuous(limits = c(-0.1, 20.1), breaks = seq(1, 19, by = 1), expand = expansion(0)) +
+  scale_y_discrete(labels = c("0" = "R", "1" = "M"), position = "right", expand = expansion(add = 0.75)) +
+  labs(x = "Donated (£)", y = NULL) +
+  theme_classic() +
+  theme(
+    axis.line = element_blank(),
+    axis.ticks.x = element_line(color = "black", linewidth = 0.5),
+    axis.ticks.y = element_line(color = "black", linewidth = 0.5),
+    axis.title.y = element_blank(),
+    axis.title.x = element_text(margin = margin(t=10), family = "serif", face = "bold", size = 17, hjust = 0.5),
+    axis.text = element_text(size = 12, family = "sans"),    
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(family = "serif", face = "bold", size = 15, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    strip.switch.pad.grid = unit(0, "in"),
+    panel.grid.major.x = element_line(color = "grey90", linewidth = 0.5),
+    aspect.ratio = 1.1/4,
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20))
+
+
+ggsave("donated_plot.png",
+       width = 11,
+       height = 12,
+       units = "in",
+       dpi = 300)
+
+
+
+# Ternary plots
+ternary_updated <- ggtern(data = pz_data_short, aes(x = donated_mam, y = kept, z = donated_rep)) +
+  geom_point(color = "grey50", alpha = 0.5, size = 4) +
+  facet_grid(rows = vars(virtual), cols = vars(player), switch = "y",
+             labeller = labeller(player = group_names, virtual = condition_names)) +
+  theme_bw() + 
+  theme_showarrows() + 
+  scale_L_continuous(breaks = seq(0, 1, 0.2), minor_breaks = seq(0.1, 0.9, 0.2)) +
+  scale_R_continuous(breaks = seq(0, 1, 0.2), minor_breaks = seq(0.1, 0.9, 0.2)) +
+  scale_T_continuous(breaks = seq(0, 1, 0.2), minor_breaks = seq(0.1, 0.9, 0.2)) +
+  Rlab("R", labelarrow = "%") +
+  Llab("M", labelarrow = "%") +
+  Tlab("K", labelarrow = "%") +
+  theme(
+    tern.panel.grid.major.T = element_line(color = "#D3B238B3", linewidth = 0.6),
+    tern.panel.grid.major.L = element_line(color = "#C51B7DB3", linewidth = 0.6),
+    tern.panel.grid.major.R = element_line(color = "#4D9221B3", linewidth = 0.6),
+    tern.axis.text = element_text(size = 10, face = "bold", color = "black"),
+    tern.axis.ticks = element_line(color = "black", linewidth = 1),
+    tern.axis.ticks.major.T = element_line(color = "#D3B238"),
+    tern.axis.ticks.major.L = element_line(color = "#C51B7D"), 
+    tern.axis.ticks.major.R = element_line(color = "#4D9221"),
+    tern.panel.grid.minor = element_line(color = "grey90", linewidth = 0.5),
+    tern.axis.ticks.minor = element_line (color = "grey90", linewidth = 1),
+    tern.axis.title.T = element_text(color = "#D3B238", face = "bold", size = 20, family = "serif"),
+    tern.axis.title.L = element_text(color = "#C51B7D", face = "bold", size = 20, family = "serif"),
+    tern.axis.title.R = element_text(color = "#4D9221", face = "bold", size = 20, family = "serif"),
+    tern.axis.ticks.length.major = rel(1.2),
+    tern.axis.ticks.length.minor = rel(0.9),
+    tern.axis.arrow.T = element_line(color = "#D3B238B3", linewidth = 1.5, 
+                                     arrow = arrow(length = unit(2, "mm"), type = "closed")),
+    tern.axis.arrow.L = element_line(color = "#C51B7DB3", linewidth = 1.5, 
+                                     arrow = arrow(length = unit(2, "mm"), type = "closed")),
+    tern.axis.arrow.R = element_line(color = "#4D9221B3", linewidth = 1.5, 
+                                     arrow = arrow(length = unit(2, "mm"), type = "closed")),
+    tern.axis.arrow.text.T = element_text(family = "serif", face = "bold", color = "black", size = 15, vjust = 0),
+    tern.axis.arrow.text.L = element_text(family = "serif", face = "bold", color = "black", size = 15, vjust = 0),
+    tern.axis.arrow.text.R = element_text(family = "serif", face = "bold", color = "black", size = 15, vjust = 0.9),
+    panel.spacing = unit(0.7, "lines"),
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.5),
+    strip.text = element_text(family = "serif", face = "bold", size = 14, color = "grey99"),
+    strip.background = element_rect(fill = "grey15", linewidth = 0.5, color = "black"),
+    strip.placement = "outside",
+    aspect.ratio = 1,
+    plot.margin = margin(t = 20, r = 20, b = 20, l = 20))
+
+
+ggsave("ternary_updated.png",
+       width = 10,
+       height = 10,
+       units = "in",
+       dpi = 300)
+
+
+```
