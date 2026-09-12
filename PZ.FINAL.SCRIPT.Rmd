@@ -387,7 +387,7 @@ print(summary(know_name), show.residuals = TRUE)
 
 
 #anova to check for significant main effects and see if there are non-significant interactions to remove from model
-#drop1(know_name, test = "Chisq")
+drop1(know_name, test = "Chisq")
 
 
 #run and print the binomial regression model again without non-significant interaction(s)
@@ -395,8 +395,8 @@ know_name_final <- glmer(cbind(id_correct,id_max-id_correct) ~ age.z + gender + 
 print(summary(know_name_final), show.residuals = TRUE)
 confint(know_name_final, method = "Wald")
 
-# drop1name <- drop1(know_name_final, test = "Chisq")
-# print(drop1name)
+drop1name <- drop1(know_name_final, test = "Chisq")
+print(drop1name)
 
 #check residuals
 sim_res_know_name_final <- simulateResiduals(know_name_final)
