@@ -1,0 +1,597 @@
+---
+title: "trial_markdown"
+output:
+  html_document: default
+  word_document: default
+date: "2025-10-29"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Matching
+
+
+```{r unmatched}
+#install.packages("MatchIt@4.7.2")
+#install.packages("optmatch@0.10.8")
+
+library("MatchIt")
+
+pz_data <- read.csv("data/data_unmatched.csv")
+
+pz_data$education <- factor(pz_data$education, levels=c('None specified', 'Secondary school', 'Further education', 'Undergraduate degree', 'Postgraduate degree'))
+pz_data$donation_habits <- factor(pz_data$donation_habits, levels=c('Never', 'Yearly', 'Once every 6 months', 'Once every 3 months', 'Monthly'))
+
+unmatched <- matchit(player ~ age + gender + education + nr + donation_habits,
+                     data = pz_data,
+                     method = NULL,
+                     distance = "glm")
+
+summary(unmatched)
+```
+
+
+
+## Nearest Neighbour
+
+Method: nearest neighbour
+Distance = glm
+Order = closest
+Caliper = none, 1, 0.75, or 0.5
+
+```{r method1, echo = FALSE}
+matched1 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "closest", 
+                    caliper = NULL)
+
+summary(matched1, un = TRUE)
+
+plot(summary(matched1))
+
+plot(matched1, type = "jitter", interactive = FALSE)
+
+plot(matched1, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method2, echo = FALSE}
+matched2 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "closest", 
+                    caliper = 1)
+
+summary(matched2, un = TRUE)
+
+plot(summary(matched2))
+
+plot(matched2, type = "jitter", interactive = FALSE)
+
+plot(matched2, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method3, echo = FALSE}
+matched3 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "closest", 
+                    caliper = 0.75)
+
+summary(matched3, un = TRUE)
+
+plot(summary(matched3))
+
+plot(matched3, type = "jitter", interactive = FALSE)
+
+plot(matched3, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method4, echo = FALSE}
+matched4 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "closest", 
+                    caliper = 0.5)
+
+summary(matched4, un = TRUE)
+
+plot(summary(matched4))
+
+plot(matched4, type = "jitter", interactive = FALSE)
+
+plot(matched4, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+## Nearest Neighbour
+
+Method: nearest neighbour
+Distance = glm
+Order = farthest
+Caliper = none, 1, 0.75, or 0.5
+
+```{r method5, echo = FALSE}
+matched5 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "farthest", 
+                    caliper = NULL)
+
+summary(matched5, un = TRUE)
+
+plot(summary(matched5))
+
+plot(matched5, type = "jitter", interactive = FALSE)
+
+plot(matched5, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method6, echo = FALSE}
+matched6 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "farthest", 
+                    caliper = 1)
+
+summary(matched6, un = TRUE)
+
+plot(summary(matched6))
+
+plot(matched6, type = "jitter", interactive = FALSE)
+
+plot(matched6, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method7, echo = FALSE}
+matched7 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "farthest", 
+                    caliper = 0.75)
+
+summary(matched7, un = TRUE)
+
+plot(summary(matched7))
+
+plot(matched7, type = "jitter", interactive = FALSE)
+
+plot(matched7, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method8, echo = FALSE}
+matched8 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = "farthest", 
+                    caliper = 0.5)
+
+summary(matched8, un = TRUE)
+
+plot(summary(matched8))
+
+plot(matched8, type = "jitter", interactive = FALSE)
+
+plot(matched8, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+## Nearest Neighbour
+
+Method: nearest neighbour
+Distance = glm
+Order = none
+Caliper = none, 1, 0.75, or 0.5
+
+```{r method9, echo = FALSE}
+matched9 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = NULL, 
+                    caliper = NULL)
+
+summary(matched9, un = TRUE)
+
+plot(summary(matched9))
+
+plot(matched9, type = "jitter", interactive = FALSE)
+
+plot(matched9, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method10, echo = FALSE}
+matched10 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = NULL, 
+                    caliper = 1)
+
+summary(matched10, un = TRUE)
+
+plot(summary(matched10))
+
+plot(matched10, type = "jitter", interactive = FALSE)
+
+plot(matched10, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method11, echo = FALSE}
+matched11 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = NULL, 
+                    caliper = 0.75)
+
+summary(matched11, un = TRUE)
+
+plot(summary(matched11))
+
+plot(matched11, type = "jitter", interactive = FALSE)
+
+plot(matched11, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method12, echo = FALSE}
+matched12 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits,
+                    m.order = NULL, 
+                    caliper = 0.5)
+
+summary(matched12, un = TRUE)
+
+plot(summary(matched12))
+
+plot(matched12, type = "jitter", interactive = FALSE)
+
+plot(matched12, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+## Nearest Neighbour
+
+Method: nearest neighbour
+Distance = mahalanobis
+Order = closest
+Caliper = none, 1, 0.75, or 0.5
+
+
+```{r method13, echo = FALSE}
+matched13 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "closest", 
+                    caliper = NULL)
+
+summary(matched13, un = TRUE)
+
+plot(summary(matched13))
+
+## plot(matched13, type = "jitter", interactive = FALSE)
+
+plot(matched13, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method14, echo = FALSE}
+matched14 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "closest", 
+                    caliper = c(age = 1, nr = 1))
+
+summary(matched14, un = TRUE)
+
+plot(summary(matched14))
+
+## plot(matched14, type = "jitter", interactive = FALSE)
+
+plot(matched14, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method15, echo = FALSE}
+matched15 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "closest", 
+                    caliper = c(age = .75, nr = 0.75))
+
+summary(matched15, un = TRUE)
+
+plot(summary(matched15))
+
+## plot(matched15, type = "jitter", interactive = FALSE)
+
+plot(matched15, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method16, echo = FALSE}
+matched16 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "closest", 
+                    caliper = c(age = .5, nr = 0.5))
+
+summary(matched16, un = TRUE)
+
+plot(summary(matched16))
+
+## plot(matched16, type = "jitter", interactive = FALSE)
+
+plot(matched16, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+## Nearest Neighbour
+
+Method: nearest neighbour
+Distance = mahalanobis
+Order = farthest
+Caliper = none, 1, 0.75, or 0.5
+
+```{r method17, echo = FALSE}
+matched17 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "farthest", 
+                    caliper = NULL)
+
+summary(matched17, un = TRUE)
+
+plot(summary(matched17))
+
+## plot(matched17, type = "jitter", interactive = FALSE)
+
+plot(matched17, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method18, echo = FALSE}
+matched18 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "farthest", 
+                    caliper = c(age = 1, nr = 1))
+
+summary(matched18, un = TRUE)
+
+plot(summary(matched18))
+
+## plot(matched18, type = "jitter", interactive = FALSE)
+
+plot(matched18, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method19, echo = FALSE}
+matched19 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "farthest", 
+                    caliper = c(age = .75, nr = 0.75))
+
+summary(matched19, un = TRUE)
+
+plot(summary(matched19))
+
+## plot(matched19, type = "jitter", interactive = FALSE)
+
+plot(matched19, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method20, echo = FALSE}
+matched20 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = "farthest", 
+                    caliper = c(age = 0.5, nr = 0.5))
+
+summary(matched20, un = TRUE)
+
+plot(summary(matched20))
+
+## plot(matched20, type = "jitter", interactive = FALSE)
+
+plot(matched20, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+## Nearest Neighbour
+
+Method: nearest neighbour
+Distance = mahalanobis
+Order = none
+Caliper = none, 1, 0.75, or 0.5
+
+```{r method21, echo = FALSE}
+matched21 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = NULL, 
+                    caliper = NULL)
+
+summary(matched21, un = TRUE)
+
+plot(summary(matched21))
+
+## plot(matched21, type = "jitter", interactive = FALSE)
+
+plot(matched21, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method22, echo = FALSE}
+matched22 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = NULL, 
+                    caliper = c(age = 1, nr = 1))
+
+summary(matched22, un = TRUE)
+
+plot(summary(matched22))
+
+## plot(matched22, type = "jitter", interactive = FALSE)
+
+plot(matched22, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method23, echo = FALSE}
+matched23 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = NULL, 
+                    caliper = c(age = 0.75, nr = 0.75))
+
+summary(matched23, un = TRUE)
+
+plot(summary(matched23))
+
+## plot(matched23, type = "jitter", interactive = FALSE)
+
+plot(matched23, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+
+```{r method24, echo = FALSE}
+matched24 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "nearest", 
+                    distance = "mahalanobis", 
+                    m.order = NULL, 
+                    caliper = c(age = .5, nr = 0.5))
+
+summary(matched24, un = TRUE)
+
+plot(summary(matched24))
+
+## plot(matched24, type = "jitter", interactive = FALSE)
+
+plot(matched24, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+## Optimal Pair
+
+Method: optimal pair
+Distance = glm
+Order = none
+Caliper = none
+
+```{r method25, echo = FALSE}
+matched25 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "optimal", 
+                    distance = "glm", 
+                    mahvars = ~ age + gender + education + nr + donation_habits)
+
+summary(matched25, un = TRUE)
+
+plot(summary(matched25))
+
+plot(matched25, type = "jitter", interactive = FALSE)
+
+plot(matched25, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+## Optimal Pair
+
+Method: optimal pair
+Distance = mahalanobis
+Order = none
+Caliper = none
+
+```{r method26, echo = FALSE}
+matched26 <- matchit(player ~ age + gender + education + nr + donation_habits,
+                    data = pz_data, method = "optimal", 
+                    distance = "mahalanobis")
+
+summary(matched26, un = TRUE)
+
+plot(summary(matched26))
+
+## plot(matched26, type = "jitter", interactive = FALSE)
+
+plot(matched26, type = "density", interactive = FALSE,
+     which.xs = ~age + gender + education + nr + donation_habits)
+```
+
+
+## Specification number 6 seems best.
+
+```{r exported matched data, eco = FALSE}
+get_matches(matched6)
+final_data <- get_matches(matched6)
+write.csv(final_data, "data/data_matched.csv")
+```
