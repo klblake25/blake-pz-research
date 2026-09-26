@@ -18,7 +18,7 @@ First of all we use the tidyverse package to read our CSV into a data table.
 
 ```{r csv, message = FALSE}
 library(tidyverse)
-dataset <- read_csv("pz_iat_data.csv", show_col_types = FALSE)
+dataset <- read_csv("data/iat_raw.csv", show_col_types = FALSE)
 ```
 
 Then we can filter all columns except those interesting to us using `subset()`. Using `c()` we can build (or "combine") a list of columns that we want to keep.
