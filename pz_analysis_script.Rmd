@@ -76,7 +76,7 @@ levels(pz_data$pz_recency) <- list(
 
 
 #different dataset because do not have separate lines of responses per taxa for IAT or donations; no participant_id random effect
-pz_data_short <- read.csv("/data/data_short.csv")
+pz_data_short <- read.csv("data/data_short.csv")
 pz_data_short <- pz_data_short %>% filter(education != "None specified")
 
 #convert to factors
