@@ -56,7 +56,7 @@ library("patchwork")
 ```{r read and reorder data, include=TRUE, echo=TRUE}
 
 #read data
-pz_data <- read.csv("C:/Users/katie/OneDrive/Research/PhD/Videogames and conservation/PZ/Write Up/Supp Material/SI2_Data and scripts/Datasets post-matching/final_data_long.csv")
+pz_data <- read.csv("/data/data_long.csv")
 pz_data <- pz_data %>% filter(education != "None specified")
 
 
@@ -76,7 +76,7 @@ levels(pz_data$pz_recency) <- list(
 
 
 #different dataset because do not have separate lines of responses per taxa for IAT or donations; no participant_id random effect
-pz_data_short <- read.csv("C:/Users/katie/OneDrive/Research/PhD/Videogames and conservation/PZ/Write Up/Supp Material/SI2_Data and scripts/Datasets post-matching/final_data_short.csv")
+pz_data_short <- read.csv("/data/data_short.csv")
 pz_data_short <- pz_data_short %>% filter(education != "None specified")
 
 #convert to factors
