@@ -56,7 +56,7 @@ library("patchwork")
 ```{r read and reorder data, include=TRUE, echo=TRUE}
 
 #read data
-pz_data <- read.csv("/data/data_long.csv")
+pz_data <- read.csv("data/data_long.csv")
 pz_data <- pz_data %>% filter(education != "None specified")
 
 
