@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r unmatched}
-#install.packages("MatchIt@4.7.2")
+install.packages("MatchIt@4.7.2")
 #install.packages("optmatch@0.10.8")
 
 library("MatchIt")

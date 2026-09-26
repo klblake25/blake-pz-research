@@ -210,8 +210,6 @@ boxplot(data = step10, x=step10$result, xlab="D Score", ylim=c(-2, 2))
 # Export csv
 
 ```{r}
-install.packages("readr")
-library("readr")
-write_csv(step10, path = "IAT.results.csv")
+write.csv(step10, "data/iat_scores.csv")
 ```
 
